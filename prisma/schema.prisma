@@ -16,7 +16,6 @@ model User {
   lastName     String
   email        String       @unique
   password     String
-  position     PositionEnum?
   role         UserRoleEnum @default(USER)
   status       UserStatus   @default(ACTIVATE)
   createdAt    DateTime     @default(now())
@@ -40,18 +39,13 @@ model Profile {
 
 enum UserRoleEnum {
   USER
-  ADMIN
   SUPERADMIN
+  MANAGER
+  EMPLOYEE
 }
 
 enum UserStatus {
   ACTIVATE
   INACTIVATE
   BLOCKED
-}
-
-enum PositionEnum {
-  USER
-  EMPLOYEE
-  MANAGER
 }
