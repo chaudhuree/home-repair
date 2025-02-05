@@ -1,51 +1,119 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id           String       @id @default(auto()) @map("_id") @db.ObjectId
-  firstName    String
-  lastName     String
-  email        String       @unique
-  password     String
-  role         UserRoleEnum @default(USER)
-  status       UserStatus   @default(ACTIVATE)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  profile      Profile?
-  otp          String?
+generator client {
+  provider = "prisma-client-js"
+}
 
-  @@map("users")
+enum UserRole {
+  user
+  employee
+  manager
+}
+
+enum ServiceStatus {
+  pending
+  assigned
+  in_progress
+  completed
+}
+
+enum PaymentStatus {
+  pending
+  partially_paid
+  total_paid
+}
+
+enum OrderPaymentStatus {
+  failed
+  success
+}
+
+model User {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  email         String   @unique
+  password      String
+  role          UserRole @default(user)
+  resetToken    String?
+  resetTokenExpiry DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  profile        Profile?
+  reservations   Reservation[] @relation("customer")
+  assignedJobs   Reservation[] @relation("employee")
+  orders         Order[]
+}
+
+model Service {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String
+  image       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  reservations Reservation[]
+}
+
+model Reservation {
+  id                String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String        @db.ObjectId
+  serviceId        String        @db.ObjectId
+  employeeId       String?       @db.ObjectId
+  providePaint     Boolean       @default(false) // For painting service - true if client provides paint
+  status           ServiceStatus @default(pending)
+  beforeImages     String[]      // URLs of images before work
+  afterImages      String[]      // URLs of images after work
+  scheduledDate    DateTime
+  amount           Float
+  paymentStatus    PaymentStatus @default(pending)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // Relations
+  user     User     @relation("customer", fields: [userId], references: [id])
+  employee User?    @relation("employee", fields: [employeeId], references: [id])
+  service  Service  @relation(fields: [serviceId], references: [id])
+  order    Order?
 }
 
 model Profile {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId           String   @unique @db.ObjectId
-  bio              String?
-  age              Int?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @unique @db.ObjectId
+  firstName   String
+  lastName    String
+  contactNo   String?
+  address     String?
+  bio         String?
+  profileImg  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  // Relations
+  user        User     @relation(fields: [userId], references: [id])
 }
 
-enum UserRoleEnum {
-  USER
-  SUPERADMIN
-  MANAGER
-  EMPLOYEE
-}
+model Order {
+  id             String            @id @default(auto()) @map("_id") @db.ObjectId
+  reservationId  String           @unique @db.ObjectId
+  userId         String           @db.ObjectId
+  totalAmount    Float
+  paymentIntent  String?
+  paymentStatus  OrderPaymentStatus
+  currency       String           @default("USD")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-enum UserStatus {
-  ACTIVATE
-  INACTIVATE
-  BLOCKED
+  // Relations
+  user        User        @relation(fields: [userId], references: [id])
+  reservation Reservation @relation(fields: [reservationId], references: [id])
 }

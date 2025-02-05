@@ -1,39 +1,50 @@
 import express from 'express';
-import auth from '../../middlewares/auth';
-import validateRequest from '../../middlewares/validateRequest';
 import { UserControllers } from './user.controller';
+import auth from '../../middlewares/auth';
+import { ENUM_USER_ROLE } from '../../../enums/user';
+import validateRequest from '../../middlewares/validateRequest';
 import { UserValidations } from './user.validation';
+
 const router = express.Router();
 
 router.post(
   '/register',
   validateRequest(UserValidations.registerUser),
-  UserControllers.registerUser,
+  UserControllers.registerUser
 );
 
-router.get('/', UserControllers.getAllUsers);
+router.get('/my-profile', auth(), UserControllers.getMyProfile);
 
-router.get('/me', auth('USER', 'ADMIN'), UserControllers.getMyProfile);
-
-router.get('/:id', UserControllers.getUserDetails);
-router.put(
-  '/update-profile',
-  auth('USER', 'ADMIN'),
-  validateRequest(UserValidations.updateProfileSchema),
-  UserControllers.updateMyProfile,
+router.get(
+  '/:id',
+  auth(ENUM_USER_ROLE.ADMIN),
+  UserControllers.getUserDetails
 );
 
-router.put(
-  '/update-user/:id',
-  auth('ADMIN', 'SUPERADMIN'),
+router.get(
+  '/',
+  auth(ENUM_USER_ROLE.ADMIN),
+  UserControllers.getAllUsers
+);
+
+router.patch(
+  '/my-profile',
+  auth(),
   validateRequest(UserValidations.updateProfileSchema),
-  UserControllers.updateUserRoleStatus,
+  UserControllers.updateMyProfile
+);
+
+router.patch(
+  '/:id/status',
+  auth(ENUM_USER_ROLE.ADMIN),
+  UserControllers.updateUserStatus
 );
 
 router.post(
   '/change-password',
-  auth('USER', 'ADMIN'),
-  UserControllers.changePassword,
+  auth(),
+  validateRequest(UserValidations.changePassword),
+  UserControllers.changePassword
 );
 
-export const UserRouters = router;
+export const UserRoutes = router;

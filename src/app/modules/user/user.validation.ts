@@ -42,4 +42,15 @@ const updateProfileSchema = z.object({
   }),
 });
 
-export const UserValidations = { registerUser, updateProfileSchema };
+const changePassword = z.object({
+  body: z.object({
+    oldPassword: z.string({
+      required_error: "Old password is required!",
+    }),
+    newPassword: z.string({
+      required_error: "New password is required!",
+    }),
+  }),
+});
+
+export const UserValidations = { registerUser, updateProfileSchema, changePassword };

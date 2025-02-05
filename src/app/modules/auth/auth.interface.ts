@@ -1,3 +1,12 @@
+import { UserRole } from '@prisma/client';
+
+export type ITokenUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+};
+
 export type ILoginUser = {
   email: string;
   password: string;

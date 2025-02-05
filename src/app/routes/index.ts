@@ -1,6 +1,9 @@
 import express, { Router, Request, Response } from 'express';
 import { AuthRoutes } from '../modules/auth/auth.routes';
-import { UserRouters } from '../modules/user/user.routes';
+import { UserRoutes } from '../modules/user/user.routes';
+import { ServiceRoutes } from '../modules/service/service.routes';
+import { ReservationRoutes } from '../modules/reservation/reservation.routes';
+import { OrderRoutes } from '../modules/order/order.routes';
 // need to import below two to upload image -> upload is the middleware
 // uploadImage is the function
 import { uploadFile } from '../utils/uploadFile';
@@ -20,7 +23,19 @@ const moduleRoutes: ModuleRoute[] = [
   },
   {
     path: '/users',
-    route: UserRouters,
+    route: UserRoutes,
+  },
+  {
+    path: '/services',
+    route: ServiceRoutes,
+  },
+  {
+    path: '/reservations',
+    route: ReservationRoutes,
+  },
+  {
+    path: '/orders',
+    route: OrderRoutes,
   },
 ];
 
