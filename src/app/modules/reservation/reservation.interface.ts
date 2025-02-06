@@ -1,6 +1,6 @@
 import { ServiceStatus, PaymentStatus } from '@prisma/client';
 
-export interface IReservation {
+export type IReservation = {
   id?: string;
   userId: string;
   serviceId: string;
@@ -12,15 +12,19 @@ export interface IReservation {
   scheduledDate: Date | string;
   amount: number;
   paymentStatus: PaymentStatus;
+  firstInstallmentPaid?: boolean;
+  secondInstallmentPaid?: boolean;
   workStartTime?: Date;
   workEndTime?: Date;
 }
 
-export interface IUpdateReservation {
+export type IUpdateReservation = {
   employeeId?: string;
   status?: ServiceStatus;
   afterImages?: string[];
   paymentStatus?: PaymentStatus;
+  firstInstallmentPaid?: boolean;
+  secondInstallmentPaid?: boolean;
   workStartTime?: Date;
   workEndTime?: Date;
 }
@@ -32,4 +36,10 @@ export type IReservationFilters = {
   employeeId?: string;
   userId?: string;
   serviceId?: string;
+  firstInstallmentPaid?: boolean;
+  secondInstallmentPaid?: boolean;
 }
+
+export type IAssignEmployee = {
+  employeeId: string;
+};

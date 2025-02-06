@@ -20,9 +20,10 @@ enum UserRole {
 
 enum ServiceStatus {
   pending
-  assigned
   in_progress
   completed
+  cancelled
+  success
 }
 
 enum PaymentStatus {
@@ -67,21 +68,25 @@ model Service {
 }
 
 model Reservation {
-  id                String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId           String        @db.ObjectId
-  serviceId        String        @db.ObjectId
-  employeeId       String?       @db.ObjectId
-  providePaint     Boolean       @default(false) // For painting service - true if client provides paint
-  status           ServiceStatus @default(pending)
-  beforeImages     String[]      // URLs of images before work
-  afterImages      String[]      // URLs of images after work
-  scheduledDate    DateTime
-  workStartTime    DateTime?     // Time when work status changed to in_progress
-  workEndTime      DateTime?     // Time when work status changed to completed
-  amount           Float
-  paymentStatus    PaymentStatus @default(pending)
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  id                    String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId                String        @db.ObjectId
+  serviceId             String        @db.ObjectId
+  employeeId            String?       @db.ObjectId
+  providePaint          Boolean       @default(false)
+  status                ServiceStatus @default(pending)
+  beforeImages          String[]
+  afterImages           String[]
+  scheduledDate         DateTime
+  workStartTime         DateTime?
+  workEndTime           DateTime?
+  amount                Float
+  firstInstallmentAmount Float
+  secondInstallmentAmount Float
+  firstInstallmentPaid   Boolean      @default(false)
+  secondInstallmentPaid  Boolean      @default(false)
+  paymentStatus         PaymentStatus @default(pending)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   // Relations
   user     User     @relation("customer", fields: [userId], references: [id])

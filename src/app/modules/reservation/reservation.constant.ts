@@ -1,4 +1,9 @@
-export const reservationSearchableFields = ['status', 'paymentStatus'];
+export const reservationSearchableFields = [
+  'id',
+  'userId',
+  'serviceId',
+  'employeeId'
+];
 
 export const reservationFilterableFields = [
   'searchTerm',
@@ -6,4 +11,7 @@ export const reservationFilterableFields = [
   'paymentStatus',
   'employeeId',
   'userId',
+  'serviceId',
+  'firstInstallmentPaid',
+  'secondInstallmentPaid'
 ];
