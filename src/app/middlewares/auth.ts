@@ -15,8 +15,13 @@ const auth = (...roles: string[]) => {
         throw new AppError(httpStatus.UNAUTHORIZED, 'You are not authorized!');
       }
 
+      // Extract the token from Bearer format
+      const tokenWithoutBearer = token.startsWith('Bearer ')
+        ? token.slice(7)
+        : token;
+
       const verifyUserToken = verifyToken(
-        token,
+        tokenWithoutBearer,
         config.jwt.access_secret as Secret,
       );
 

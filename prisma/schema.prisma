@@ -40,8 +40,8 @@ model User {
   email         String   @unique
   password      String
   role          UserRole @default(user)
-  resetToken    String?
-  resetTokenExpiry DateTime?
+  otp    String?
+  otpExpiry   DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
