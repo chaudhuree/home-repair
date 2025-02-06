@@ -108,17 +108,43 @@ const updateReservation = async (
   id: string,
   payload: IUpdateReservation
 ): Promise<Reservation> => {
+  const existingReservation = await prisma.reservation.findUnique({
+    where: { id }
+  });
+
+  if (!existingReservation) {
+    throw new AppError(404, 'Reservation not found');
+  }
+
+  // Handle work start time when status changes to in_progress
+  if (payload.status === ServiceStatus.in_progress) {
+    payload = {
+      ...payload,
+      workStartTime: new Date()
+    };
+  }
+
+  // Handle work end time when status changes to completed
+  if (payload.status === ServiceStatus.completed) {
+    if (!existingReservation.workStartTime) {
+      throw new AppError(400, 'Cannot complete work that has not been started');
+    }
+    payload = {
+      ...payload,
+      workEndTime: new Date()
+    };
+  }
+
   const result = await prisma.reservation.update({
-    where: {
-      id,
-    },
+    where: { id },
     data: payload,
     include: {
       service: true,
       user: true,
-      employee: true,
-    },
+      employee: true
+    }
   });
+
   return result;
 };
 

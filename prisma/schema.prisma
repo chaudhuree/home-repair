@@ -76,6 +76,8 @@ model Reservation {
   beforeImages     String[]      // URLs of images before work
   afterImages      String[]      // URLs of images after work
   scheduledDate    DateTime
+  workStartTime    DateTime?     // Time when work status changed to in_progress
+  workEndTime      DateTime?     // Time when work status changed to completed
   amount           Float
   paymentStatus    PaymentStatus @default(pending)
   createdAt        DateTime      @default(now())

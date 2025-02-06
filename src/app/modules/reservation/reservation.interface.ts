@@ -9,9 +9,11 @@ export interface IReservation {
   status: ServiceStatus;
   beforeImages: string[];
   afterImages: string[];
-  scheduledDate: Date;
+  scheduledDate: Date | string;
   amount: number;
   paymentStatus: PaymentStatus;
+  workStartTime?: Date;
+  workEndTime?: Date;
 }
 
 export interface IUpdateReservation {
@@ -19,12 +21,15 @@ export interface IUpdateReservation {
   status?: ServiceStatus;
   afterImages?: string[];
   paymentStatus?: PaymentStatus;
+  workStartTime?: Date;
+  workEndTime?: Date;
 }
 
 export type IReservationFilters = {
   searchTerm?: string;
-  status?: string;
+  status?: ServiceStatus;
   paymentStatus?: string;
   employeeId?: string;
   userId?: string;
+  serviceId?: string;
 }
