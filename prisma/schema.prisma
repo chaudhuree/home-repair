@@ -11,7 +11,9 @@ generator client {
 }
 
 enum UserRole {
+  super_admin
   user
+  property_manager
   employee
   manager
 }
@@ -40,8 +42,8 @@ model User {
   email         String   @unique
   password      String
   role          UserRole @default(user)
-  otp    String?
-  otpExpiry   DateTime?
+  otp           String?
+  otpExpiry     DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

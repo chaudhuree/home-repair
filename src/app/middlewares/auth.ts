@@ -6,13 +6,16 @@ import AppError from '../errors/AppError';
 import prisma from '../utils/prisma';
 import { verifyToken } from '../utils/verifyToken';
 
-const auth = (...roles: string[]) => {
+const auth = (...requiredRoles: string[]) => {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
+      // Check if authorization header exists
       const token = req.headers.authorization;
-
       if (!token) {
-        throw new AppError(httpStatus.UNAUTHORIZED, 'You are not authorized!');
+        throw new AppError(
+          httpStatus.UNAUTHORIZED,
+          'You are not authorized! Please login first.'
+        );
       }
 
       // Extract the token from Bearer format
@@ -20,26 +23,36 @@ const auth = (...roles: string[]) => {
         ? token.slice(7)
         : token;
 
-      const verifyUserToken = verifyToken(
+      // Verify token
+      const verifiedUser = verifyToken(
         tokenWithoutBearer,
         config.jwt.access_secret as Secret,
       );
 
-      // Check user is exist
-      const user = await prisma.user.findUniqueOrThrow({
+      // Check if user exists in database
+      const user = await prisma.user.findUnique({
         where: {
-          id: verifyUserToken.id,
+          id: verifiedUser.id,
         },
       });
 
       if (!user) {
-        throw new AppError(httpStatus.UNAUTHORIZED, 'You are not authorized!');
+        throw new AppError(
+          httpStatus.UNAUTHORIZED,
+          'User does not exist! Please login again.'
+        );
       }
 
-      req.user = verifyUserToken;
-      if (roles.length && !roles.includes(verifyUserToken.role)) {
-        throw new AppError(httpStatus.FORBIDDEN, 'Forbidden!');
+      // Check role authorization
+      if (requiredRoles.length > 0 && !requiredRoles.includes(user.role)) {
+        throw new AppError(
+          httpStatus.FORBIDDEN,
+          `Only ${requiredRoles.join(', ')} can access this resource`
+        );
       }
+
+      // Set user in request object
+      req.user = verifiedUser;
       next();
     } catch (error) {
       next(error);

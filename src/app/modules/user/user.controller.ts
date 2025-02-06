@@ -75,12 +75,12 @@ const updateMyProfile = catchAsync(async (req: Request, res: Response) => {
 
 const updateUserStatus = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await UserServices.updateUserStatusIntoDB(id);
+  const result = await UserServices.updateUserStatusIntoDB(id, req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'User status updated successfully',
+    message: 'User role updated successfully',
     data: result,
   });
 });

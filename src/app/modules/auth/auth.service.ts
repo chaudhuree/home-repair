@@ -29,6 +29,10 @@ interface ITokenUser {
   role: UserRole;
 }
 
+const generateOTP = (): string => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
 const loginUser = async (payload: ILoginUser): Promise<ILoginUserResponse> => {
   const { email, password } = payload;
   const user = await prisma.user.findUnique({
@@ -79,41 +83,56 @@ const forgotPassword = async (email: string): Promise<{ message: string }> => {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
-  // Generate reset token
-  const resetToken = crypto.randomBytes(32).toString('hex');
-  const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+  // Generate OTP
+  const otp = generateOTP();
+  const otpExpiry = new Date(Date.now() + 300000); // 5 minutes from now
+
+  // Type assertion to handle Prisma types
+  const updateData = {
+    otp,
+    otpExpiry,
+  } as const;
 
   await prisma.user.update({
     where: { email },
-    data: {
-      resetToken,
-      resetTokenExpiry,
-    },
+    data: updateData,
   });
 
-  // Send reset token via email
-  await emailService.sendPasswordResetToken(email, resetToken);
+  // Send OTP via email
+  await emailService.sendEmail({
+    to: email,
+    subject: 'Password Reset OTP',
+    body: `Your OTP for password reset is: ${otp}. This OTP will expire in 5 minutes.`,
+  });
 
   return { 
-    message: 'Password reset instructions sent to your email' 
+    message: 'OTP has been sent to your email' 
   };
 };
 
 const resetPassword = async (
-  resetToken: string, 
+  email: string,
+  otp: string,
   newPassword: string
 ): Promise<{ message: string }> => {
+  const currentDate = new Date();
+  
   const user = await prisma.user.findFirst({
     where: {
-      resetToken,
-      resetTokenExpiry: {
-        gt: new Date(),
-      },
-    },
+      AND: [
+        { email },
+        { otp },
+        {
+          otpExpiry: {
+            gt: currentDate
+          }
+        }
+      ]
+    }
   });
 
   if (!user) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Invalid or expired reset token');
+    throw new AppError(httpStatus.BAD_REQUEST, 'Invalid or expired OTP');
   }
 
   const hashedPassword = await bcrypt.hash(
@@ -125,8 +144,8 @@ const resetPassword = async (
     where: { id: user.id },
     data: {
       password: hashedPassword,
-      resetToken: null,
-      resetTokenExpiry: null,
+      otp: null,
+      otpExpiry: null,
     },
   });
 

@@ -4,6 +4,7 @@ import prisma from '../../utils/prisma';
 import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
 import { IPaginationOptions, IGenericResponse } from '../../interface/pagination';
+import { UserRole } from '@prisma/client';
 
 interface UserWithOptionalPassword extends Omit<User, 'password'> {
   password?: string;
@@ -114,8 +115,8 @@ const getAllUsersFromDB = async (
       name: true,
       email: true,
       role: true,
-      resetToken: true,
-      resetTokenExpiry: true,
+      otp : true,
+      otpExpiry : true,
       createdAt: true,
       updatedAt: true,
     },
@@ -217,13 +218,30 @@ const updateMyProfileIntoDB = async (id: string, payload: any) => {
   return result;
 };
 
-const updateUserStatusIntoDB = async (id: string) => {
+const updateUserStatusIntoDB = async (id: string, payload: { role: UserRole }) => {
+  // Validate if the user exists
+  const existingUser = await prisma.user.findUnique({
+    where: { id }
+  });
+
+  if (!existingUser) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  // Validate the role
+  if (!Object.values(UserRole).includes(payload.role)) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Invalid role. Role must be one of: ' + Object.values(UserRole).join(', ')
+    );
+  }
+
   const result = await prisma.user.update({
     where: {
       id,
     },
     data: {
-      role: 'employee',
+      role: payload.role,
     },
     select: {
       id: true,
@@ -246,12 +264,12 @@ const changePassword = async (user: any, payload: any) => {
   });
 
   // Ensure both current and new passwords are provided
-  if (!payload.currentPassword || !payload.newPassword) {
+  if (!payload.oldPassword || !payload.newPassword) {
     throw new Error('Current and new passwords are required');
   }
 
   const isCorrectPassword: boolean = await bcrypt.compare(
-    payload.currentPassword, 
+    payload.oldPassword, 
     userData.password || '' 
   );
 

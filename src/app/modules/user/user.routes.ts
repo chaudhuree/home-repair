@@ -17,13 +17,13 @@ router.get('/my-profile', auth(), UserControllers.getMyProfile);
 
 router.get(
   '/:id',
-  auth(ENUM_USER_ROLE.ADMIN),
+  auth(ENUM_USER_ROLE.MANAGER),
   UserControllers.getUserDetails
 );
 
 router.get(
   '/',
-  auth(ENUM_USER_ROLE.ADMIN),
+  auth(ENUM_USER_ROLE.MANAGER),
   UserControllers.getAllUsers
 );
 
@@ -35,8 +35,8 @@ router.patch(
 );
 
 router.patch(
-  '/:id/status',
-  auth(ENUM_USER_ROLE.ADMIN),
+  '/:id/role',
+  auth(ENUM_USER_ROLE.MANAGER),
   UserControllers.updateUserStatus
 );
 

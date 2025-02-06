@@ -3,7 +3,7 @@ import { config } from 'dotenv';
 
 config(); // Load environment variables
 
-interface EmailOptions {
+export interface EmailOptions {
   to: string;
   subject: string;
   body: string;
@@ -37,7 +37,7 @@ export class EmailService {
     this.transporter = nodemailer.createTransport(emailConfig);
   }
 
-  private async sendEmail(options: EmailOptions): Promise<any> {
+  public async sendEmail(options: EmailOptions): Promise<any> {
     try {
       const result = await this.transporter.sendMail({
         from: process.env.EMAIL_FROM || 'support@homerepair.com',
