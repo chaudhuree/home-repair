@@ -4,6 +4,7 @@ import { UserRoutes } from '../modules/user/user.routes';
 import { ServiceRoutes } from '../modules/service/service.routes';
 import { ReservationRoutes } from '../modules/reservation/reservation.routes';
 import { OrderRoutes } from '../modules/order/order.routes';
+import { ChatRoutes } from '../modules/chat/chat.routes';
 // need to import below two to upload image -> upload is the middleware
 // uploadImage is the function
 import { uploadFile } from '../utils/uploadFile';
@@ -36,6 +37,10 @@ const moduleRoutes: ModuleRoute[] = [
   {
     path: '/orders',
     route: OrderRoutes,
+  },
+  {
+    path: '/chat',
+    route: ChatRoutes,
   },
 ];
 

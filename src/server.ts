@@ -1,14 +1,18 @@
 import { Server } from 'http';
 import app from './app';
-import seedSuperAdmin from './app/DB';
 import config from './config';
+import { setupSocket } from './app/utils/socket';
 
 const port = config.port || 5000;
 
 async function main() {
-  const server: Server = app.listen(port, () => {
-    console.log('Sever is running on port ', port);
-    seedSuperAdmin();
+  const server: Server = new Server(app);
+  
+  // Setup Socket.IO
+  setupSocket(server);
+
+  server.listen(port, () => {
+    console.log('Server is running on port ', port);
   });
   const exitHandler = () => {
     if (server) {

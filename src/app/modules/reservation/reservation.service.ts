@@ -19,21 +19,47 @@ const createReservation = async (userId: string, data: IReservation): Promise<Re
   const firstInstallmentAmount = data.amount * 0.5;
   const secondInstallmentAmount = data.amount * 0.5;
 
-  const result = await prisma.reservation.create({
-    data: {
-      ...data,
-      userId,
-      firstInstallmentAmount,
-      secondInstallmentAmount,
-      firstInstallmentPaid: false,
-      secondInstallmentPaid: false,
-      status: ServiceStatus.pending,
-      paymentStatus: PaymentStatus.pending
-    },
-    include: {
-      service: true,
-      user: true
+  const result = await prisma.$transaction(async (tx) => {
+    const reservation = await tx.reservation.create({
+      data: {
+        ...data,
+        userId,
+        firstInstallmentAmount,
+        secondInstallmentAmount,
+        firstInstallmentPaid: false,
+        secondInstallmentPaid: false,
+        status: ServiceStatus.pending,
+        paymentStatus: PaymentStatus.pending
+      },
+      include: {
+        service: true,
+        user: true
+      }
+    });
+
+    // Create chat room
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: {
+        name: true
+      }
+    });
+
+    if (!user) {
+      throw new AppError(404, 'User not found');
     }
+
+    const chatRoomName = `${user.name}_${service.name}-${new Date().toISOString().split('T')[0]}`;
+    
+    await tx.chatRoom.create({
+      data: {
+        name: chatRoomName,
+        reservationId: reservation.id,
+        participants: [userId]
+      }
+    });
+
+    return reservation;
   });
 
   return result;
@@ -350,42 +376,35 @@ const assignEmployee = async (
   id: string,
   payload: IAssignEmployee
 ): Promise<Reservation> => {
-  // Check if reservation exists
-  const existingReservation = await prisma.reservation.findUnique({
-    where: { id }
-  });
+  const result = await prisma.$transaction(async (tx) => {
+    const reservation = await tx.reservation.update({
+      where: {
+        id,
+      },
+      data: {
+        employeeId: payload.employeeId,
+        status: ServiceStatus.in_progress,
+      },
+      include: {
+        service: true,
+        user: true,
+        employee: true,
+      },
+    });
 
-  if (!existingReservation) {
-    throw new AppError(404, 'Reservation not found');
-  }
+    // Update chat room participants to include the employee
+    await tx.chatRoom.update({
+      where: {
+        reservationId: id
+      },
+      data: {
+        participants: {
+          push: payload.employeeId
+        }
+      }
+    });
 
-  // Check if employee exists and has employee role
-  const employee = await prisma.user.findFirst({
-    where: {
-      id: payload.employeeId,
-      role: 'employee'
-    }
-  });
-
-  if (!employee) {
-    throw new AppError(404, 'Employee not found or user is not an employee');
-  }
-
-  // Check if employee is already assigned to this reservation
-  if (existingReservation.employeeId === payload.employeeId) {
-    throw new AppError(400, 'Employee is already assigned to this reservation');
-  }
-
-  const result = await prisma.reservation.update({
-    where: { id },
-    data: {
-      employeeId: payload.employeeId
-    },
-    include: {
-      service: true,
-      user: true,
-      employee: true
-    }
+    return reservation;
   });
 
   return result;

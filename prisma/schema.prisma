@@ -53,6 +53,7 @@ model User {
   reservations   Reservation[] @relation("customer")
   assignedJobs   Reservation[] @relation("employee")
   orders         Order[]
+  messages       Message[]
 }
 
 model Service {
@@ -93,6 +94,7 @@ model Reservation {
   employee User?    @relation("employee", fields: [employeeId], references: [id])
   service  Service  @relation(fields: [serviceId], references: [id])
   order    Order?
+  chatRoom ChatRoom?
 }
 
 model Profile {
@@ -125,4 +127,30 @@ model Order {
   // Relations
   user        User        @relation(fields: [userId], references: [id])
   reservation Reservation @relation(fields: [reservationId], references: [id])
+}
+
+model ChatRoom {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String    // Format: customerName_serviceName-dateOfBooking
+  reservationId String    @unique @db.ObjectId
+  participants  String[]  @db.ObjectId // Array of User IDs
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  messages      Message[]
+}
+
+model Message {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  chatRoomId  String    @db.ObjectId
+  senderId    String    @db.ObjectId
+  content     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  chatRoom    ChatRoom  @relation(fields: [chatRoomId], references: [id])
+  sender      User      @relation(fields: [senderId], references: [id])
 }
