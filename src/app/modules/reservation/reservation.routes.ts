@@ -9,7 +9,7 @@ const router = express.Router();
 
 router.post(
   '/',
-  auth(ENUM_USER_ROLE.USER),
+  auth(ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROPERTY_MANAGER),
   validateRequest(ReservationValidation.create),
   ReservationController.createReservation
 );
@@ -26,7 +26,16 @@ router.get(
   ReservationController.getAllReservations
 );
 
-router.get('/:id', auth(ENUM_USER_ROLE.USER, ENUM_USER_ROLE.EMPLOYEE, ENUM_USER_ROLE.MANAGER), ReservationController.getSingleReservation);
+router.get(
+  '/:id', 
+  auth(
+    ENUM_USER_ROLE.USER, 
+    ENUM_USER_ROLE.EMPLOYEE, 
+    ENUM_USER_ROLE.MANAGER,
+    ENUM_USER_ROLE.PROPERTY_MANAGER
+  ), 
+  ReservationController.getSingleReservation
+);
 
 router.patch(
   '/:id',
@@ -37,13 +46,13 @@ router.patch(
 
 router.patch(
   '/:id/first-installment',
-  auth(ENUM_USER_ROLE.USER),
+  auth(ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROPERTY_MANAGER),
   ReservationController.confirmFirstInstallment
 );
 
 router.patch(
   '/:id/second-installment',
-  auth(ENUM_USER_ROLE.USER),
+  auth(ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROPERTY_MANAGER),
   ReservationController.confirmSecondInstallment
 );
 

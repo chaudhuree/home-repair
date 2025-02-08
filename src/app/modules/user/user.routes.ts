@@ -15,6 +15,17 @@ router.post(
 
 router.get('/my-profile', auth(), UserControllers.getMyProfile);
 
+// Get all employees route should be before the :id route
+// router.get(
+//   '/employees',
+//   auth(ENUM_USER_ROLE.SUPER_ADMIN, ENUM_USER_ROLE.MANAGER),
+//   UserControllers.getAllEmployees
+// );
+router.get(
+  '/employees',
+  UserControllers.getAllEmployees
+);
+
 router.get(
   '/:id',
   auth(ENUM_USER_ROLE.MANAGER),

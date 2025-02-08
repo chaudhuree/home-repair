@@ -4,6 +4,7 @@ import { UserServices } from './user.service';
 import sendResponse from '../../utils/sendResponse';
 import catchAsync from '../../utils/catchAsync';
 import pickValidFields from '../../utils/pickValidFields';
+import pick from '../../utils/pickValidFields';
 import { IPaginationOptions } from '../../interface/pagination';
 
 const registerUser = catchAsync(async (req: Request, res: Response) => {
@@ -97,6 +98,12 @@ const changePassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAllEmployees = catchAsync(async (req: Request, res: Response) => {
+  const paginationOptions = pick(req.query, ['page', 'limit', 'sortBy', 'sortOrder']);
+  const result = await UserServices.getAllEmployees(paginationOptions);
+  sendResponse(res, result);
+});
+
 export const UserControllers = {
   registerUser,
   getAllUsers,
@@ -105,4 +112,5 @@ export const UserControllers = {
   updateMyProfile,
   updateUserStatus,
   changePassword,
+  getAllEmployees,
 };

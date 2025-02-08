@@ -293,6 +293,44 @@ const changePassword = async (user: any, payload: any) => {
   };
 };
 
+const getAllEmployees = async (
+  paginationOptions: IPaginationOptions
+): Promise<IGenericResponse<User[]>> => {
+  const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = paginationOptions;
+
+  const skip = (page - 1) * limit;
+
+  const employees = await prisma.user.findMany({
+    where: {
+      role: 'employee'
+    },
+    skip,
+    take: limit,
+    orderBy: {
+      [sortBy]: sortOrder,
+    },
+  });
+
+  const total = await prisma.user.count({
+    where: {
+      role: 'employee'
+    }
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: 'Employees retrieved successfully',
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: employees,
+  };
+};
+
 export const UserServices = {
   registerUserIntoDB,
   getAllUsersFromDB,
@@ -301,4 +339,5 @@ export const UserServices = {
   updateMyProfileIntoDB,
   updateUserStatusIntoDB,
   changePassword,
+  getAllEmployees,
 };

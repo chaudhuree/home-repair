@@ -52,25 +52,28 @@ export const setupSocket = (server: HTTPServer) => {
       // Notify room about new participant
       io.to(roomId).emit('userJoined', {
         userId: socket.user?.id,
-        name: socket.user?.name
+        name: `${socket.user?.firstName} ${socket.user?.lastName}`
       });
     });
 
-    socket.on('sendMessage', async (data: { roomId: string; message: string }) => {
+    socket.on('sendMessage', async (data: { roomId: string; message: any }) => {
       try {
         if (!socket.user) {
           throw new Error('User not authenticated');
         }
 
-        // Broadcast the message to all users in the room
-        io.to(data.roomId).emit('message', {
+        // Ensure sender information is present
+        const messageToSend = {
+          ...data.message,
           sender: {
             id: socket.user.id,
-            name: socket.user.name
-          },
-          content: data.message,
-          createdAt: new Date()
-        });
+            name: `${socket.user.firstName} ${socket.user.lastName}`,
+            email: socket.user.email
+          }
+        };
+
+        // Broadcast the message to all users in the room except sender
+        socket.to(data.roomId).emit('message', messageToSend);
       } catch (error) {
         console.error('Socket error:', error);
         socket.emit('error', { message: 'Failed to send message' });
@@ -90,7 +93,7 @@ export const setupSocket = (server: HTTPServer) => {
           // Notify room about participant leaving
           io.to(roomId).emit('userLeft', {
             userId: socket.user?.id,
-            name: socket.user?.name
+            name: `${socket.user.firstName} ${socket.user.lastName}`
           });
         }
       });
