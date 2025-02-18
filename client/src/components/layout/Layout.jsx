@@ -1,4 +1,9 @@
-import { Box, Container, Typography, Paper } from '@mui/material';
+import { 
+  Box, 
+  Container, 
+  Typography, 
+  Paper 
+} from '@mui/material';
 import { useSelector } from 'react-redux';
 import Navbar from './Navbar';
 
@@ -34,6 +39,7 @@ function Layout({ children }) {
       }}
     >
       <Navbar />
+
       {user && (
         <Paper 
           elevation={0} 

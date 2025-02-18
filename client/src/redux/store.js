@@ -4,6 +4,7 @@ import serviceReducer from './slices/serviceSlice';
 import reservationReducer from './slices/reservationSlice';
 import chatReducer from './slices/chatSlice';
 import userReducer from './slices/userSlice';
+import cashbackReducer from './slices/cashbackSlice';
 
 export const store = configureStore({
   reducer: {
@@ -12,5 +13,6 @@ export const store = configureStore({
     reservation: reservationReducer,
     chat: chatReducer,
     user: userReducer,
+    cashback: cashbackReducer,
   },
 });

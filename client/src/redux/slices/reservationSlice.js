@@ -95,6 +95,21 @@ export const confirmSecondInstallment = createAsyncThunk(
   }
 );
 
+export const requestCashback = createAsyncThunk(
+  'reservation/requestCashback',
+  async ({ reservationId, reviewImage }, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`/reservations/${reservationId}/cashback`, {
+        reviewImage,
+      });
+      return response.data.data;
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to request cashback';
+      return rejectWithValue(message);
+    }
+  }
+);
+
 const initialState = {
   reservations: [],
   loading: false,
@@ -160,6 +175,13 @@ const reservationSlice = createSlice({
       })
       // Confirm Second Installment
       .addCase(confirmSecondInstallment.fulfilled, (state, action) => {
+        const index = state.reservations.findIndex(r => r.id === action.payload.id);
+        if (index !== -1) {
+          state.reservations[index] = action.payload;
+        }
+      })
+      // Request Cashback
+      .addCase(requestCashback.fulfilled, (state, action) => {
         const index = state.reservations.findIndex(r => r.id === action.payload.id);
         if (index !== -1) {
           state.reservations[index] = action.payload;

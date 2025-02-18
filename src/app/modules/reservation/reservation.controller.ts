@@ -115,8 +115,8 @@ const processSecondInstallment = catchAsync(async (req: Request, res: Response) 
 
 const processCashback = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
+  const userId = req.user?.id;
   const { reviewImage } = req.body;
-  const userId = req.user.id;
 
   const result = await ReservationService.processCashback(id, userId, reviewImage);
 
@@ -136,7 +136,7 @@ const approveCashback = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'Cashback approved and processed successfully',
+    message: 'Cashback approved successfully',
     data: result,
   });
 });

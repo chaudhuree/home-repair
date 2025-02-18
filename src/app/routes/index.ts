@@ -5,6 +5,7 @@ import { ServiceRoutes } from '../modules/service/service.routes';
 import { ReservationRoutes } from '../modules/reservation/reservation.routes';
 import { OrderRoutes } from '../modules/order/order.routes';
 import { ChatRoutes } from '../modules/chat/chat.routes';
+import { CashbackRoutes } from '../modules/cashback/cashback.routes';
 // need to import below two to upload image -> upload is the middleware
 // uploadImage is the function
 import { uploadFile } from '../utils/uploadFile';
@@ -41,6 +42,10 @@ const moduleRoutes: ModuleRoute[] = [
   {
     path: '/chat',
     route: ChatRoutes,
+  },
+  {
+    path: '/cashbacks',
+    route: CashbackRoutes,
   },
 ];
 

@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import HandymanIcon from '@mui/icons-material/Handyman';
+import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 
 function Navbar() {
   const dispatch = useDispatch();
@@ -27,10 +28,12 @@ function Navbar() {
   const [anchorElUser, setAnchorElUser] = useState(null);
 
   const pages = [
+    { title: 'Home', path: '/' },
     { title: 'Services', path: '/services' },
     ...(isAuthenticated ? [{ title: 'Reservations', path: '/reservations' }] : []),
     ...(isAuthenticated ? [{ title: 'Chat', path: '/chat' }] : []),
     ...((user?.role === 'manager' || user?.role === 'super_admin') ? [{ title: 'Create Service', path: '/services/create' }] : []),
+    ...((user?.role === 'manager' || user?.role === 'super_admin') ? [{ title: 'Cashback Management', path: '/cashback-management' }] : []),
   ];
 
   const handleOpenNavMenu = (event) => {

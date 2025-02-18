@@ -6,6 +6,7 @@ import {
   confirmSecondInstallment,
   assignEmployee,
   updateReservationStatus,
+  requestCashback,
 } from '../../redux/slices/reservationSlice';
 import { fetchEmployees } from '../../redux/slices/userSlice';
 import PaymentDialog from '../payment/PaymentDialog';
@@ -43,6 +44,28 @@ function ReservationCard({ reservation }) {
   const [page, setPage] = useState(1);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentType, setPaymentType] = useState(null);
+  const [openCashbackDialog, setOpenCashbackDialog] = useState(false);
+  const [cashbackImage, setCashbackImage] = useState('');
+  const [cashbackLoading, setCashbackLoading] = useState(false);
+
+  const canMakePayments = () => {
+    const isFirstInstallmentPaid = reservation.firstInstallmentPaid;
+    const isSecondInstallmentPaid = reservation.secondInstallmentPaid;
+    const isServiceCompleted = reservation.status === 'completed';
+    
+    if (!isFirstInstallmentPaid) return true;
+    if (isFirstInstallmentPaid && !isSecondInstallmentPaid && isServiceCompleted) return true;
+    return false;
+  };
+
+  const canRequestCashback = () => {
+    return (
+      reservation.status === 'completed' &&
+      reservation.firstInstallmentPaid &&
+      reservation.secondInstallmentPaid &&
+      !reservation.cashback
+    );
+  };
 
   useEffect(() => {
     if (openAssignDialog) {
@@ -146,8 +169,38 @@ function ReservationCard({ reservation }) {
     }
   };
 
-  // Check if user can make payments (user or property_manager)
-  const canMakePayments = user?.role === 'user' || user?.role === 'property_manager';
+  const handleRequestCashback = async () => {
+    if (!cashbackImage) {
+      toast.error('Please provide a review image');
+      return;
+    }
+
+    setCashbackLoading(true);
+    try {
+      await dispatch(requestCashback({
+        reservationId: reservation.id,
+        reviewImage: cashbackImage,
+      })).unwrap();
+      toast.success('Cashback request submitted successfully!');
+      setOpenCashbackDialog(false);
+      setCashbackImage('');
+    } catch (error) {
+      toast.error(error.message || 'Failed to submit cashback request');
+    } finally {
+      setCashbackLoading(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'approved':
+        return 'success';
+      case 'rejected':
+        return 'error';
+      default:
+        return 'warning';
+    }
+  };
 
   return (
     <Card>
@@ -172,7 +225,7 @@ function ReservationCard({ reservation }) {
         {process.env.NODE_ENV === 'development' && (
           <Box sx={{ mt: 1, mb: 1 }}>
             <Typography variant="caption" color="text.secondary">
-              Debug: canMakePayments: {canMakePayments.toString()}, 
+              Debug: canMakePayments: {canMakePayments().toString()}, 
               Status: {reservation.status}, 
               First Paid: {reservation.firstInstallmentPaid?.toString()},
               First Amount: ${reservation.firstInstallmentAmount}
@@ -180,7 +233,7 @@ function ReservationCard({ reservation }) {
           </Box>
         )}
         
-        {canMakePayments && (
+        {canMakePayments() && (
           <Box sx={{ mt: 2 }}>
             {!reservation.firstInstallmentPaid && (
               <Button
@@ -246,6 +299,38 @@ function ReservationCard({ reservation }) {
             >
               Open Chat
             </Button>
+          </Box>
+        )}
+
+        {/* Cashback Button or Status */}
+        {canRequestCashback() && (
+          <Box sx={{ mt: 2 }}>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => setOpenCashbackDialog(true)}
+              sx={{ mr: 1 }}
+            >
+              Request 5% Cashback
+            </Button>
+          </Box>
+        )}
+        {!canRequestCashback() && reservation.cashback && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Cashback Status: 
+              <Chip 
+                label={reservation.cashback.status}
+                color={getStatusColor(reservation.cashback.status)}
+                size="small"
+                sx={{ ml: 1 }}
+              />
+              {reservation.cashback.status === 'approved' && (
+                <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
+                  Amount: ${reservation.cashback.amount}
+                </Typography>
+              )}
+            </Typography>
           </Box>
         )}
       </CardContent>
@@ -406,7 +491,59 @@ function ReservationCard({ reservation }) {
         amount={paymentType === 'first' ? reservation.firstInstallmentAmount : reservation.secondInstallmentAmount}
       />
 
-    </Card>
+      {/* Cashback Dialog */}
+      <Dialog
+        open={openCashbackDialog}
+        onClose={() => {
+          setOpenCashbackDialog(false);
+          setCashbackImage('');
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Request 5% Cashback</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 2 }}>
+            Upload a review image to get 5% cashback on your reservation amount (${reservation.amount * 0.05})
+          </Typography>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Review Image URL</InputLabel>
+            <input
+              type="text"
+              value={cashbackImage}
+              onChange={(e) => setCashbackImage(e.target.value)}
+              placeholder="Enter review image URL"
+              style={{
+                padding: '16.5px 14px',
+                borderRadius: '4px',
+                border: '1px solid rgba(0, 0, 0, 0.23)',
+                fontSize: '1rem',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}
+            />
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setOpenCashbackDialog(false);
+              setCashbackImage('');
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleRequestCashback}
+            variant="contained"
+            color="primary"
+            disabled={!cashbackImage || cashbackLoading}
+          >
+            {cashbackLoading ? <CircularProgress size={24} /> : 'Submit Request'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      </Card>
   );
 }
 

@@ -24,6 +24,7 @@ import ReservationList from './components/reservations/ReservationList';
 import CreateReservation from './components/reservations/CreateReservation';
 import ChatList from './components/chat/ChatList';
 import ChatRoom from './components/chat/ChatRoom';
+import CashbackManagement from './components/cashback/CashbackManagement';
 
 function AppContent() {
   const dispatch = useDispatch();
@@ -105,6 +106,14 @@ function AppContent() {
             element={
               <PrivateRoute>
                 <ChatRoom />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/cashback-management"
+            element={
+              <PrivateRoute allowedRoles={['manager', 'super_admin']}>
+                <CashbackManagement />
               </PrivateRoute>
             }
           />
