@@ -1,4 +1,4 @@
-import { PaymentStatus, Prisma, RefundStatus,ServiceStatus } from '@prisma/client';
+import { PaymentStatus, Prisma, RefundStatus, ServiceStatus } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import stripe from '../../utils/stripe';
 import { IPaymentInfo } from '../../interface/payment.interface';
@@ -12,32 +12,44 @@ const createStripeCustomer = async (email: string, name: string) => {
   return customer;
 };
 
-// create a payment intent with automatic payment methods
+// create a payment intent for first installment (on-session)
 const createPaymentIntent = async (
   amount: number,
   paymentMethodId: string,
   customerId: string,
 ) => {
+  try {
+    // First attach the payment method to the customer
+    await stripe.paymentMethods.attach(paymentMethodId, {
+      customer: customerId,
+    });
 
-  // create a setup intent to save the card for future use
-  const setupIntent = await stripe.setupIntents.create({
-    customer: customerId,
-    payment_method: paymentMethodId,
-    usage: 'off_session',
-  });
+    // Set this payment method as the default for the customer
+    await stripe.customers.update(customerId, {
+      invoice_settings: {
+        default_payment_method: paymentMethodId,
+      },
+    });
 
-  // create a payment intent
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: Math.round(amount * 100), // Convert to cents
-    currency: 'usd',
-    customer: customerId,
-    payment_method: paymentMethodId,
-    setup_future_usage: 'off_session',
-    automatic_payment_methods: {
-      enabled: true,
-    },
-  });
-  return paymentIntent;
+    // create a payment intent for on-session payment
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to cents
+      currency: 'usd',
+      customer: customerId,
+      payment_method: paymentMethodId,
+      setup_future_usage: 'off_session', // Setup for future usage
+      confirm: true, // Confirm immediately since we have the payment method
+      payment_method_types: ['card'], // Only allow card payments
+    });
+
+    return paymentIntent;
+  } catch (error) {
+    // If payment method attachment fails, clean up
+    if (error.type === 'StripeInvalidRequestError') {
+      throw new AppError(400, error.message);
+    }
+    throw error;
+  }
 };
 
 // create a payment intent for the deposit it will call createPaymentIntent function
@@ -61,7 +73,7 @@ const processDeposit = async (
   return paymentIntent;
 };
 
-// update the reservation payment status to paid and charge the customer remaining amount
+// Process the remaining payment off-session using saved payment method
 const processRemainingPayment = async (
   reservationId: string
 ) => {
@@ -77,34 +89,39 @@ const processRemainingPayment = async (
     throw new AppError(400, 'Payment information not found');
   }
 
-  // reservation.status = ServiceStatus.completed;
-  // const paymentIntent = await createPaymentIntent(
-  //   amount,
-  //   'usd',
-  //   reservation.stripeCustomerId,
-  // );
   const amount = reservation.secondInstallmentAmount;
-  if(!amount){
+  if(!amount) {
     throw new AppError(400, 'Second installment amount not found');
   }
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: Math.round(amount * 100),
-    currency: 'usd',
-    customer: reservation.stripeCustomerId,
-    payment_method: reservation.paymentMethodId,
-    off_session: true,
-    confirm: true
-  });
-  await prisma.reservation.update({
-    where: { id: reservationId },
-    data: {
-      finalPaymentIntentId: paymentIntent.id,
-      paymentStatus: PaymentStatus.total_paid,
-      status: ServiceStatus.completed,
-    },
-  });
 
-  return paymentIntent;
+  try {
+    // Create and confirm payment intent for off-session payment
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100),
+      currency: 'usd',
+      customer: reservation.stripeCustomerId,
+      payment_method: reservation.paymentMethodId,
+      off_session: true, // This payment is off-session
+      confirm: true, // Confirm immediately
+      payment_method_types: ['card'], // Only allow card payments
+    });
+
+    await prisma.reservation.update({
+      where: { id: reservationId },
+      data: {
+        finalPaymentIntentId: paymentIntent.id,
+        paymentStatus: PaymentStatus.total_paid,
+        status: ServiceStatus.completed,
+      },
+    });
+
+    return paymentIntent;
+  } catch (error) {
+    if (error.type === 'StripeInvalidRequestError') {
+      throw new AppError(400, error.message);
+    }
+    throw error;
+  }
 };
 
 const processCashbackRefund = async (

@@ -8,6 +8,7 @@ import {
   updateReservationStatus,
 } from '../../redux/slices/reservationSlice';
 import { fetchEmployees } from '../../redux/slices/userSlice';
+import PaymentDialog from '../payment/PaymentDialog';
 import {
   Card,
   CardContent,
@@ -35,34 +36,19 @@ function ReservationCard({ reservation }) {
   const { employees, loading: employeesLoading, meta } = useSelector((state) => state.user);
   const [openAssignDialog, setOpenAssignDialog] = useState(false);
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [openPaymentDialog, setOpenPaymentDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [afterImages, setAfterImages] = useState('');
   const [page, setPage] = useState(1);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentType, setPaymentType] = useState(null);
 
   useEffect(() => {
     if (openAssignDialog) {
       dispatch(fetchEmployees({ page, limit: 10 }));
     }
   }, [openAssignDialog, page, dispatch]);
-
-  const handlePayFirstInstallment = async () => {
-    try {
-      await dispatch(confirmFirstInstallment(reservation.id)).unwrap();
-      toast.success('First installment confirmed!');
-    } catch (error) {
-      toast.error(error.message || 'Failed to confirm payment');
-    }
-  };
-
-  const handlePaySecondInstallment = async () => {
-    try {
-      await dispatch(confirmSecondInstallment(reservation.id)).unwrap();
-      toast.success('Second installment confirmed!');
-    } catch (error) {
-      toast.error(error.message || 'Failed to confirm payment');
-    }
-  };
 
   const handleAssignEmployee = async () => {
     if (!selectedEmployee) {
@@ -130,6 +116,36 @@ function ReservationCard({ reservation }) {
     navigate(`/chat/${reservation.chatRoomId}`);
   };
 
+  const handlePayFirstInstallment = async (paymentMethodId) => {
+    setPaymentLoading(true);
+    try {
+      await dispatch(confirmFirstInstallment({
+        reservationId: reservation.id,
+        paymentMethodId,
+      })).unwrap();
+      toast.success('First installment paid successfully!');
+      setOpenPaymentDialog(false);
+    } catch (error) {
+      toast.error(error.message || 'Failed to process payment');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const handlePaySecondInstallment = async () => {
+    setPaymentLoading(true);
+    try {
+      await dispatch(confirmSecondInstallment({
+        reservationId: reservation.id
+      })).unwrap();
+      toast.success('Second installment paid successfully!');
+    } catch (error) {
+      toast.error(error.message || 'Failed to process payment');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   // Check if user can make payments (user or property_manager)
   const canMakePayments = user?.role === 'user' || user?.role === 'property_manager';
 
@@ -153,26 +169,41 @@ function ReservationCard({ reservation }) {
           Amount: ${reservation.amount}
         </Typography>
         
+        {process.env.NODE_ENV === 'development' && (
+          <Box sx={{ mt: 1, mb: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Debug: canMakePayments: {canMakePayments.toString()}, 
+              Status: {reservation.status}, 
+              First Paid: {reservation.firstInstallmentPaid?.toString()},
+              First Amount: ${reservation.firstInstallmentAmount}
+            </Typography>
+          </Box>
+        )}
+        
         {canMakePayments && (
           <Box sx={{ mt: 2 }}>
             {!reservation.firstInstallmentPaid && (
               <Button
                 variant="contained"
                 color="primary"
-                onClick={handlePayFirstInstallment}
+                onClick={() => {
+                  setPaymentType('first');
+                  setOpenPaymentDialog(true);
+                }}
                 sx={{ mr: 1 }}
               >
-                Pay First Installment
+                Pay First Installment (${reservation.firstInstallmentAmount})
               </Button>
             )}
-            {reservation.firstInstallmentPaid && !reservation.secondInstallmentPaid && (
+            {reservation.firstInstallmentPaid && !reservation.secondInstallmentPaid && reservation.status === 'work_done' && (
               <Button
                 variant="contained"
                 color="primary"
                 onClick={handlePaySecondInstallment}
+                disabled={paymentLoading}
                 sx={{ mr: 1 }}
               >
-                Pay Second Installment
+                {paymentLoading ? <CircularProgress size={24} /> : `Pay Second Installment ($${reservation.secondInstallmentAmount})`}
               </Button>
             )}
           </Box>
@@ -302,6 +333,7 @@ function ReservationCard({ reservation }) {
         maxWidth="sm"
         fullWidth
       >
+       
         <DialogTitle>Update Status</DialogTitle>
         <DialogContent>
           <FormControl fullWidth sx={{ mt: 2, mb: 2 }}>
@@ -311,11 +343,11 @@ function ReservationCard({ reservation }) {
               onChange={(e) => setSelectedStatus(e.target.value)}
               label="Select Status"
             >
-              {(!reservation.workStartTime || reservation.status === 'in_progress') && (
+              {reservation.status === 'assigned_employee' && (
                 <MenuItem value="in_progress">In Progress</MenuItem>
               )}
-              {(reservation.workStartTime || reservation.status === 'in_progress') && (
-                <MenuItem value="completed">Completed</MenuItem>
+              {reservation.status === 'in_progress' && (
+                <MenuItem value="work_done">Work Done</MenuItem>
               )}
             </Select>
           </FormControl>
@@ -350,7 +382,7 @@ function ReservationCard({ reservation }) {
           >
             Cancel
           </Button>
-          <Button 
+           <Button 
             onClick={handleUpdateStatus}
             variant="contained"
             color="primary"
@@ -360,6 +392,20 @@ function ReservationCard({ reservation }) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Payment Dialog */}
+      <PaymentDialog
+        open={openPaymentDialog}
+        onClose={() => {
+          setOpenPaymentDialog(false);
+          setPaymentType(null);
+        }}
+        onSubmit={handlePayFirstInstallment}
+        loading={paymentLoading}
+        title={paymentType === 'first' ? 'Pay First Installment' : 'Pay Second Installment'}
+        amount={paymentType === 'first' ? reservation.firstInstallmentAmount : reservation.secondInstallmentAmount}
+      />
+
     </Card>
   );
 }

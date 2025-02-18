@@ -21,6 +21,7 @@ enum UserRole {
 enum ServiceStatus {
   pending
   accepted
+  assigned_employee
   in_progress
   work_done
   completed

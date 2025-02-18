@@ -287,16 +287,16 @@ const updateReservation = async (
   }
 
   // Handle work end time when status changes to completed
-  if (payload.status === ServiceStatus.completed) {
+  if (payload.status === ServiceStatus.work_done) {
     if (!existingReservation.workStartTime) {
       throw new AppError(400, 'Work must be started before completion');
     }
-    if (!existingReservation.secondInstallmentPaid) {
-      throw new AppError(
-        400,
-        'Second installment payment required before completing work',
-      );
-    }
+    // if (!existingReservation.secondInstallmentPaid) {
+    //   throw new AppError(
+    //     400,
+    //     'Second installment payment required before completing work',
+    //   );
+    // }
     payload = {
       ...payload,
       workEndTime: new Date(),
@@ -534,7 +534,7 @@ const assignEmployee = async (
       },
       data: {
         employeeId: payload.employeeId,
-        status: ServiceStatus.in_progress,
+        status: ServiceStatus.assigned_employee,
       },
       include: {
         service: true,

@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axiosInstance from '../../api/axios';
-import toast from 'react-hot-toast';
 
 export const createReservation = createAsyncThunk(
   'reservation/create',
@@ -68,9 +67,11 @@ export const assignEmployee = createAsyncThunk(
 
 export const confirmFirstInstallment = createAsyncThunk(
   'reservation/confirmFirstInstallment',
-  async (reservationId, { rejectWithValue }) => {
+  async ({ reservationId, paymentMethodId }, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.patch(`/reservations/${reservationId}/first-installment`);
+      const response = await axiosInstance.patch(`/reservations/${reservationId}/first-installment`, {
+        paymentMethodId,
+      });
       return response.data.data;
     } catch (error) {
       const message = error.response?.data?.message || 'Failed to confirm first installment';
@@ -81,9 +82,11 @@ export const confirmFirstInstallment = createAsyncThunk(
 
 export const confirmSecondInstallment = createAsyncThunk(
   'reservation/confirmSecondInstallment',
-  async (reservationId, { rejectWithValue }) => {
+  async ({ reservationId, paymentMethodId }, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.patch(`/reservations/${reservationId}/second-installment`);
+      const response = await axiosInstance.patch(`/reservations/${reservationId}/second-installment`, {
+        paymentMethodId,
+      });
       return response.data.data;
     } catch (error) {
       const message = error.response?.data?.message || 'Failed to confirm second installment';
