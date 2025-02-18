@@ -3,6 +3,7 @@ import prisma from '../../utils/prisma';
 import stripe from '../../utils/stripe';
 import { IPaymentInfo } from '../../interface/payment.interface';
 import AppError from '../../errors/AppError';
+import Stripe from 'stripe';
 
 const createStripeCustomer = async (email: string, name: string) => {
   const customer = await stripe.customers.create({
@@ -45,7 +46,7 @@ const createPaymentIntent = async (
     return paymentIntent;
   } catch (error) {
     // If payment method attachment fails, clean up
-    if (error.type === 'StripeInvalidRequestError') {
+    if (error instanceof Stripe.errors.StripeError) {
       throw new AppError(400, error.message);
     }
     throw error;
@@ -117,7 +118,7 @@ const processRemainingPayment = async (
 
     return paymentIntent;
   } catch (error) {
-    if (error.type === 'StripeInvalidRequestError') {
+    if (error instanceof Stripe.errors.StripeError) {
       throw new AppError(400, error.message);
     }
     throw error;

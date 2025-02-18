@@ -65,7 +65,7 @@ const createReservation = async (
     });
 
     // Create chat room
-    const chatRoomName = `${user.name}_${service.name}-${new Date().toISOString().split('T')[0]}`;
+    const chatRoomName = `${user.name} | ${service.name} | #${reservation.id}`;
 
     await tx.chatRoom.create({
       data: {
