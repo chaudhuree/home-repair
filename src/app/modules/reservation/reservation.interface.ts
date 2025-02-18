@@ -1,4 +1,4 @@
-import { ServiceStatus, PaymentStatus } from '@prisma/client';
+import { ServiceStatus, PaymentStatus, CashbackStatus } from '@prisma/client';
 
 export type IReservation = {
   id?: string;
@@ -7,7 +7,7 @@ export type IReservation = {
   employeeId?: string;
   providePaint: boolean;
   status: ServiceStatus;
-  customersGivenImages?: string[];
+  customersGivenImages: string[];
   beforeImages: string[];
   afterImages: string[];
   scheduledDate: Date | string;
@@ -44,3 +44,39 @@ export type IReservationFilters = {
 export type IAssignEmployee = {
   employeeId: string;
 };
+
+export interface IPaymentRequest {
+  paymentMethodId: string;
+}
+
+export interface ICashbackRequest {
+  reviewImage: string | string[];
+}
+
+export interface ICashbackApproval {
+  cashbackId: string;
+  status: CashbackStatus;
+}
+
+export interface IPaymentResponse {
+  success: boolean;
+  message: string;
+  data: {
+    paymentIntentId: string;
+    clientSecret?: string;
+    amount: number;
+    status: PaymentStatus;
+  };
+}
+
+export interface ICashbackResponse {
+  success: boolean;
+  message: string;
+  data: {
+    id: string;
+    amount: number;
+    status: CashbackStatus;
+    proof: string;
+    createdAt: Date;
+  };
+}

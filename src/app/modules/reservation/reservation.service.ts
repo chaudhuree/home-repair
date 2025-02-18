@@ -1,15 +1,29 @@
-import { Prisma, Reservation, ServiceStatus, PaymentStatus, RefundStatus } from '@prisma/client';
+import {
+  Prisma,
+  Reservation,
+  ServiceStatus,
+  PaymentStatus,
+  RefundStatus,
+} from '@prisma/client';
 import prisma from '../../utils/prisma';
-import { IReservation, IReservationFilters, IUpdateReservation, IAssignEmployee } from './reservation.interface';
+import {
+  IReservation,
+  IReservationFilters,
+  IUpdateReservation,
+  IAssignEmployee,
+} from './reservation.interface';
 import { IPaginationOptions } from '../../interface/pagination';
 import calculatePagination from '../../utils/calculatePagination';
 import { reservationSearchableFields } from './reservation.constant';
 import AppError from '../../errors/AppError';
 import { PaymentService } from '../payment/payment.service';
 
-const createReservation = async (userId: string, data: IReservation): Promise<Reservation> => {
+const createReservation = async (
+  userId: string,
+  data: IReservation,
+): Promise<Reservation> => {
   const service = await prisma.service.findUnique({
-    where: { id: data.serviceId }
+    where: { id: data.serviceId },
   });
 
   if (!service) {
@@ -17,7 +31,7 @@ const createReservation = async (userId: string, data: IReservation): Promise<Re
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: userId }
+    where: { id: userId },
   });
 
   if (!user || !user.stripeCustomerId) {
@@ -28,7 +42,7 @@ const createReservation = async (userId: string, data: IReservation): Promise<Re
   const firstInstallmentAmount = data.amount * 0.5;
   const secondInstallmentAmount = data.amount * 0.5;
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async tx => {
     const reservation = await tx.reservation.create({
       data: {
         ...data,
@@ -42,23 +56,23 @@ const createReservation = async (userId: string, data: IReservation): Promise<Re
         paymentStatus: PaymentStatus.pending,
         customersGivenImages: data.customersGivenImages || [],
         beforeImages: [],
-        afterImages: []
+        afterImages: [],
       },
       include: {
         service: true,
-        user: true
-      }
+        user: true,
+      },
     });
 
     // Create chat room
     const chatRoomName = `${user.name}_${service.name}-${new Date().toISOString().split('T')[0]}`;
-    
+
     await tx.chatRoom.create({
       data: {
         name: chatRoomName,
         reservationId: reservation.id,
-        participants: [userId]
-      }
+        participants: [userId],
+      },
     });
 
     return reservation;
@@ -71,7 +85,7 @@ const getAllReservations = async (
   filters: IReservationFilters,
   options: IPaginationOptions,
   userId: string,
-  userRole: string
+  userRole: string,
 ) => {
   const { searchTerm, ...filterData } = filters;
   const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
@@ -106,20 +120,20 @@ const getAllReservations = async (
       OR: reservationSearchableFields.map(field => ({
         [field]: {
           equals: searchTerm,
-          mode: 'insensitive'
-        }
-      }))
+          mode: 'insensitive',
+        },
+      })),
     });
   }
 
   // Handle other filters
   type FilterKeys = Exclude<keyof IReservationFilters, 'searchTerm'>;
-  
+
   (Object.keys(filterData) as FilterKeys[]).forEach(key => {
     const value = filterData[key];
     if (value !== undefined) {
       andConditions.push({
-        [key]: value
+        [key]: value,
       });
     }
   });
@@ -131,36 +145,39 @@ const getAllReservations = async (
     where: whereConditions,
     skip,
     take: limit,
-    orderBy: sortBy && sortOrder ? {
-      [sortBy]: sortOrder
-    } : {
-      createdAt: 'desc'
-    },
+    orderBy:
+      sortBy && sortOrder
+        ? {
+            [sortBy]: sortOrder,
+          }
+        : {
+            createdAt: 'desc',
+          },
     include: {
       service: true,
       user: true,
-      employee: true
-    }
+      employee: true,
+    },
   });
 
   const total = await prisma.reservation.count({
-    where: whereConditions
+    where: whereConditions,
   });
 
   return {
     meta: {
       page,
       limit,
-      total
+      total,
     },
-    data: result
+    data: result,
   };
 };
 
 const getSingleReservation = async (
   id: string,
   userId: string,
-  userRole: string
+  userRole: string,
 ): Promise<Reservation> => {
   const reservation = await prisma.reservation.findUnique({
     where: {
@@ -183,22 +200,28 @@ const getSingleReservation = async (
     case 'property_manager':
       // Users and property managers can only view their own reservations
       if (reservation.userId !== userId) {
-        throw new AppError(403, 'You are not authorized to view this reservation');
+        throw new AppError(
+          403,
+          'You are not authorized to view this reservation',
+        );
       }
       break;
-      
+
     case 'employee':
       // Employees can only view reservations assigned to them
       if (reservation.employeeId !== userId) {
-        throw new AppError(403, 'You are not authorized to view this reservation');
+        throw new AppError(
+          403,
+          'You are not authorized to view this reservation',
+        );
       }
       break;
-      
+
     case 'manager':
     case 'super_admin':
       // Managers and super admins can view all reservations
       break;
-      
+
     default:
       throw new AppError(403, 'You are not authorized to view reservations');
   }
@@ -210,10 +233,10 @@ const updateReservation = async (
   id: string,
   payload: IUpdateReservation,
   userId: string,
-  userRole: string
+  userRole: string,
 ): Promise<Reservation> => {
   const existingReservation = await prisma.reservation.findUnique({
-    where: { id }
+    where: { id },
   });
 
   if (!existingReservation) {
@@ -221,32 +244,45 @@ const updateReservation = async (
   }
 
   // Check authorization for status updates
-  if (payload.status === ServiceStatus.in_progress || payload.status === ServiceStatus.completed) {
+  if (
+    payload.status === ServiceStatus.in_progress ||
+    payload.status === ServiceStatus.completed
+  ) {
     // Only manager or assigned employee can update these statuses
     const isManager = userRole === 'manager';
     const isAssignedEmployee = existingReservation.employeeId === userId;
 
     if (!isManager && !isAssignedEmployee) {
-      throw new AppError(403, 'Only manager or assigned employee can update work status');
+      throw new AppError(
+        403,
+        'Only manager or assigned employee can update work status',
+      );
     }
   }
 
   // Check if trying to update status to in_progress or completed without an employee
   if (
-    (payload.status === ServiceStatus.in_progress || payload.status === ServiceStatus.completed) && 
+    (payload.status === ServiceStatus.in_progress ||
+      payload.status === ServiceStatus.completed) &&
     !existingReservation.employeeId
   ) {
-    throw new AppError(400, 'Cannot start or complete work without an assigned employee');
+    throw new AppError(
+      400,
+      'Cannot start or complete work without an assigned employee',
+    );
   }
 
   // Handle work start time when status changes to in_progress
   if (payload.status === ServiceStatus.in_progress) {
     if (!existingReservation.firstInstallmentPaid) {
-      throw new AppError(400, 'First installment payment required before starting work');
+      throw new AppError(
+        400,
+        'First installment payment required before starting work',
+      );
     }
     payload = {
       ...payload,
-      workStartTime: new Date()
+      workStartTime: new Date(),
     };
   }
 
@@ -256,18 +292,24 @@ const updateReservation = async (
       throw new AppError(400, 'Work must be started before completion');
     }
     if (!existingReservation.secondInstallmentPaid) {
-      throw new AppError(400, 'Second installment payment required before completing work');
+      throw new AppError(
+        400,
+        'Second installment payment required before completing work',
+      );
     }
     payload = {
       ...payload,
-      workEndTime: new Date()
+      workEndTime: new Date(),
     };
   }
 
   // Update payment status based on installment payments
   if (payload.firstInstallmentPaid || payload.secondInstallmentPaid) {
-    const willFirstBePaid = payload.firstInstallmentPaid ?? existingReservation.firstInstallmentPaid;
-    const willSecondBePaid = payload.secondInstallmentPaid ?? existingReservation.secondInstallmentPaid;
+    const willFirstBePaid =
+      payload.firstInstallmentPaid ?? existingReservation.firstInstallmentPaid;
+    const willSecondBePaid =
+      payload.secondInstallmentPaid ??
+      existingReservation.secondInstallmentPaid;
 
     if (willFirstBePaid && willSecondBePaid) {
       payload.paymentStatus = PaymentStatus.total_paid;
@@ -282,8 +324,8 @@ const updateReservation = async (
     include: {
       service: true,
       user: true,
-      employee: true
-    }
+      employee: true,
+    },
   });
 
   return result;
@@ -306,13 +348,13 @@ const deleteReservation = async (id: string): Promise<Reservation> => {
 const processFirstInstallment = async (
   id: string,
   paymentMethodId: string,
-  userId: string
+  userId: string,
 ): Promise<Reservation> => {
   const reservation = await prisma.reservation.findUnique({
     where: { id },
     include: {
-      user: true
-    }
+      user: true,
+    },
   });
 
   if (!reservation) {
@@ -326,16 +368,15 @@ const processFirstInstallment = async (
   if (!reservation.stripeCustomerId) {
     throw new AppError(400, 'Payment information not found');
   }
-
-  // Process the deposit payment
   if (!reservation.firstInstallmentAmount) {
     throw new AppError(400, 'First installment amount not found');
   }
+  // Process the deposit payment
   await PaymentService.processDeposit(
     id,
     reservation.firstInstallmentAmount,
-    reservation.stripeCustomerId!,
-    paymentMethodId
+    reservation.stripeCustomerId,
+    paymentMethodId,
   );
 
   // Update reservation status
@@ -344,27 +385,27 @@ const processFirstInstallment = async (
     data: {
       firstInstallmentPaid: true,
       paymentStatus: PaymentStatus.partially_paid,
-      status: ServiceStatus.pending
+      status: ServiceStatus.accepted,
     },
     include: {
       service: true,
       user: true,
-      employee: true
-    }
+      employee: true,
+    },
   });
 
   return updatedReservation;
 };
-
+// final payment of the reservation here id is the reservation id
 const processSecondInstallment = async (
   id: string,
-  userId: string
+  userId: string,
 ): Promise<Reservation> => {
   const reservation = await prisma.reservation.findUnique({
     where: { id },
     include: {
-      user: true
-    }
+      user: true,
+    },
   });
 
   if (!reservation) {
@@ -379,15 +420,12 @@ const processSecondInstallment = async (
     throw new AppError(400, 'Payment information not found');
   }
 
+  // Process the remaining payment
   if (!reservation.secondInstallmentAmount) {
     throw new AppError(400, 'Second installment amount not found');
   }
-
-  // Process the remaining payment
-  await PaymentService.processRemainingPayment(
-    id,
-    reservation.secondInstallmentAmount
-  );
+  await PaymentService.processRemainingPayment(id);
+  //id -> reservationId
 
   // Update reservation status
   const updatedReservation = await prisma.reservation.update({
@@ -395,13 +433,13 @@ const processSecondInstallment = async (
     data: {
       secondInstallmentPaid: true,
       paymentStatus: PaymentStatus.total_paid,
-      status: ServiceStatus.completed
+      status: ServiceStatus.completed,
     },
     include: {
       service: true,
       user: true,
-      employee: true
-    }
+      employee: true,
+    },
   });
 
   return updatedReservation;
@@ -410,13 +448,13 @@ const processSecondInstallment = async (
 const processCashback = async (
   id: string,
   userId: string,
-  proof: string[]
+  reviewImage: string,
 ): Promise<Reservation> => {
   const reservation = await prisma.reservation.findUnique({
     where: { id },
     include: {
-      user: true
-    }
+      user: true,
+    },
   });
 
   if (!reservation) {
@@ -428,7 +466,10 @@ const processCashback = async (
   }
 
   if (reservation.status !== ServiceStatus.completed) {
-    throw new AppError(400, 'Reservation must be completed to request cashback');
+    throw new AppError(
+      400,
+      'Reservation must be completed to request cashback',
+    );
   }
 
   const cashbackAmount = reservation.amount * 0.05; // 5% cashback
@@ -440,9 +481,9 @@ const processCashback = async (
       reservationId: id,
       amount: cashbackAmount,
       status: 'pending',
-      proof,
-      depositPaymentIntentId: reservation.depositPaymentIntentId
-    }
+      proof: [reviewImage], // Convert single string to array
+      depositPaymentIntentId: reservation.depositPaymentIntentId,
+    },
   });
 
   return reservation;
@@ -450,10 +491,10 @@ const processCashback = async (
 
 const approveCashback = async (
   id: string,
-  cashbackId: string
+  cashbackId: string,
 ): Promise<Reservation> => {
   const cashback = await prisma.cashback.findUnique({
-    where: { id: cashbackId }
+    where: { id: cashbackId },
   });
 
   if (!cashback) {
@@ -461,7 +502,7 @@ const approveCashback = async (
   }
 
   const reservation = await prisma.reservation.findUnique({
-    where: { id }
+    where: { id },
   });
 
   if (!reservation) {
@@ -469,17 +510,14 @@ const approveCashback = async (
   }
 
   // Process the cashback refund
-  await PaymentService.processCashbackRefund(
-    id,
-    cashback.amount
-  );
+  await PaymentService.processCashbackRefund(id, cashback.amount);
 
   // Update cashback status
   await prisma.cashback.update({
     where: { id: cashbackId },
     data: {
-      status: 'approved'
-    }
+      status: 'approved',
+    },
   });
 
   return reservation;
@@ -487,9 +525,9 @@ const approveCashback = async (
 
 const assignEmployee = async (
   id: string,
-  payload: IAssignEmployee
+  payload: IAssignEmployee,
 ): Promise<Reservation> => {
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async tx => {
     const reservation = await tx.reservation.update({
       where: {
         id,
@@ -508,13 +546,13 @@ const assignEmployee = async (
     // Update chat room participants to include the employee
     await tx.chatRoom.update({
       where: {
-        reservationId: id
+        reservationId: id,
       },
       data: {
         participants: {
-          push: payload.employeeId
-        }
-      }
+          push: payload.employeeId,
+        },
+      },
     });
 
     return reservation;
@@ -533,5 +571,5 @@ export const ReservationService = {
   processSecondInstallment,
   assignEmployee,
   processCashback,
-  approveCashback
+  approveCashback,
 };

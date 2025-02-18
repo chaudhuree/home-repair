@@ -5,8 +5,6 @@ import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
 import { IPaginationOptions, IGenericResponse } from '../../interface/pagination';
 import { UserRole } from '@prisma/client';
-
-
 import { PaymentService } from '../payment/payment.service';
 
 interface UserWithOptionalPassword extends Omit<User, 'password'> {
@@ -125,9 +123,9 @@ const getAllUsersFromDB = async (
       name: true,
       email: true,
       role: true,
-      otp : true,
-      stripeCustomerId : true,
-      otpExpiry : true,
+      otp: true,
+      otpExpiry: true,
+      stripeCustomerId: true,
       createdAt: true,
       updatedAt: true,
     },

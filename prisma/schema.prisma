@@ -91,6 +91,7 @@ model Reservation {
   employeeId              String?       @db.ObjectId
   stripeCustomerId        String?
   depositPaymentIntentId  String?
+  finalPaymentIntentId    String?
   paymentMethodId         String?
   refundId                String?
   refundStatus            RefundStatus?

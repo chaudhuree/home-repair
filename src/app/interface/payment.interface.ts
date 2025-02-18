@@ -2,6 +2,7 @@ export interface IPaymentInfo {
   stripeCustomerId: string;
   depositPaymentIntentId: string;
   paymentMethodId: string;
+  finalPaymentIntentId: string;
 }
 
 export interface IStripeCustomer {
