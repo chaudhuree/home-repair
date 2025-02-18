@@ -1,10 +1,11 @@
-import { Prisma, Reservation, ServiceStatus, PaymentStatus } from '@prisma/client';
+import { Prisma, Reservation, ServiceStatus, PaymentStatus, RefundStatus } from '@prisma/client';
 import prisma from '../../utils/prisma';
 import { IReservation, IReservationFilters, IUpdateReservation, IAssignEmployee } from './reservation.interface';
 import { IPaginationOptions } from '../../interface/pagination';
 import calculatePagination from '../../utils/calculatePagination';
 import { reservationSearchableFields } from './reservation.constant';
 import AppError from '../../errors/AppError';
+import { PaymentService } from '../payment/payment.service';
 
 const createReservation = async (userId: string, data: IReservation): Promise<Reservation> => {
   const service = await prisma.service.findUnique({
@@ -13,6 +14,14 @@ const createReservation = async (userId: string, data: IReservation): Promise<Re
 
   if (!service) {
     throw new AppError(404, 'Service not found');
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId }
+  });
+
+  if (!user || !user.stripeCustomerId) {
+    throw new AppError(404, 'User or payment information not found');
   }
 
   // Calculate installments (50% each)
@@ -24,12 +33,16 @@ const createReservation = async (userId: string, data: IReservation): Promise<Re
       data: {
         ...data,
         userId,
+        stripeCustomerId: user.stripeCustomerId,
         firstInstallmentAmount,
         secondInstallmentAmount,
         firstInstallmentPaid: false,
         secondInstallmentPaid: false,
         status: ServiceStatus.pending,
-        paymentStatus: PaymentStatus.pending
+        paymentStatus: PaymentStatus.pending,
+        customersGivenImages: data.customersGivenImages || [],
+        beforeImages: [],
+        afterImages: []
       },
       include: {
         service: true,
@@ -38,17 +51,6 @@ const createReservation = async (userId: string, data: IReservation): Promise<Re
     });
 
     // Create chat room
-    const user = await tx.user.findUnique({
-      where: { id: userId },
-      select: {
-        name: true
-      }
-    });
-
-    if (!user) {
-      throw new AppError(404, 'User not found');
-    }
-
     const chatRoomName = `${user.name}_${service.name}-${new Date().toISOString().split('T')[0]}`;
     
     await tx.chatRoom.create({
@@ -301,40 +303,163 @@ const deleteReservation = async (id: string): Promise<Reservation> => {
   return result;
 };
 
-const confirmFirstInstallment = async (id: string, userId: string): Promise<Reservation> => {
+const processFirstInstallment = async (
+  id: string,
+  paymentMethodId: string,
+  userId: string
+): Promise<Reservation> => {
   const reservation = await prisma.reservation.findUnique({
-    where: { id }
+    where: { id },
+    include: {
+      user: true
+    }
   });
 
   if (!reservation) {
     throw new AppError(404, 'Reservation not found');
   }
 
-  // Verify the user owns this reservation
   if (reservation.userId !== userId) {
-    throw new AppError(403, 'You are not authorized to pay for this reservation');
+    throw new AppError(403, 'You are not authorized to process this payment');
   }
 
-  // Check if already paid
-  if (reservation.firstInstallmentPaid) {
-    throw new AppError(400, 'First installment is already paid');
+  if (!reservation.stripeCustomerId) {
+    throw new AppError(400, 'Payment information not found');
   }
 
-  const result = await prisma.reservation.update({
+  // Process the deposit payment
+  if (!reservation.firstInstallmentAmount) {
+    throw new AppError(400, 'First installment amount not found');
+  }
+  await PaymentService.processDeposit(
+    id,
+    reservation.firstInstallmentAmount,
+    reservation.stripeCustomerId!,
+    paymentMethodId
+  );
+
+  // Update reservation status
+  const updatedReservation = await prisma.reservation.update({
     where: { id },
     data: {
       firstInstallmentPaid: true,
-      paymentStatus: PaymentStatus.partially_paid
+      paymentStatus: PaymentStatus.partially_paid,
+      status: ServiceStatus.pending
     },
     include: {
       service: true,
+      user: true,
+      employee: true
+    }
+  });
+
+  return updatedReservation;
+};
+
+const processSecondInstallment = async (
+  id: string,
+  userId: string
+): Promise<Reservation> => {
+  const reservation = await prisma.reservation.findUnique({
+    where: { id },
+    include: {
       user: true
     }
   });
-  return result;
+
+  if (!reservation) {
+    throw new AppError(404, 'Reservation not found');
+  }
+
+  if (reservation.userId !== userId) {
+    throw new AppError(403, 'You are not authorized to process this payment');
+  }
+
+  if (!reservation.stripeCustomerId) {
+    throw new AppError(400, 'Payment information not found');
+  }
+
+  if (!reservation.secondInstallmentAmount) {
+    throw new AppError(400, 'Second installment amount not found');
+  }
+
+  // Process the remaining payment
+  await PaymentService.processRemainingPayment(
+    id,
+    reservation.secondInstallmentAmount
+  );
+
+  // Update reservation status
+  const updatedReservation = await prisma.reservation.update({
+    where: { id },
+    data: {
+      secondInstallmentPaid: true,
+      paymentStatus: PaymentStatus.total_paid,
+      status: ServiceStatus.completed
+    },
+    include: {
+      service: true,
+      user: true,
+      employee: true
+    }
+  });
+
+  return updatedReservation;
 };
 
-const confirmSecondInstallment = async (id: string, userId: string): Promise<Reservation> => {
+const processCashback = async (
+  id: string,
+  userId: string,
+  proof: string[]
+): Promise<Reservation> => {
+  const reservation = await prisma.reservation.findUnique({
+    where: { id },
+    include: {
+      user: true
+    }
+  });
+
+  if (!reservation) {
+    throw new AppError(404, 'Reservation not found');
+  }
+
+  if (reservation.userId !== userId) {
+    throw new AppError(403, 'You are not authorized to request cashback');
+  }
+
+  if (reservation.status !== ServiceStatus.completed) {
+    throw new AppError(400, 'Reservation must be completed to request cashback');
+  }
+
+  const cashbackAmount = reservation.amount * 0.05; // 5% cashback
+
+  // Create cashback record
+  await prisma.cashback.create({
+    data: {
+      userId,
+      reservationId: id,
+      amount: cashbackAmount,
+      status: 'pending',
+      proof,
+      depositPaymentIntentId: reservation.depositPaymentIntentId
+    }
+  });
+
+  return reservation;
+};
+
+const approveCashback = async (
+  id: string,
+  cashbackId: string
+): Promise<Reservation> => {
+  const cashback = await prisma.cashback.findUnique({
+    where: { id: cashbackId }
+  });
+
+  if (!cashback) {
+    throw new AppError(404, 'Cashback request not found');
+  }
+
   const reservation = await prisma.reservation.findUnique({
     where: { id }
   });
@@ -343,33 +468,21 @@ const confirmSecondInstallment = async (id: string, userId: string): Promise<Res
     throw new AppError(404, 'Reservation not found');
   }
 
-  // Verify the user owns this reservation
-  if (reservation.userId !== userId) {
-    throw new AppError(403, 'You are not authorized to pay for this reservation');
-  }
+  // Process the cashback refund
+  await PaymentService.processCashbackRefund(
+    id,
+    cashback.amount
+  );
 
-  // Check if first installment is paid
-  if (!reservation.firstInstallmentPaid) {
-    throw new AppError(400, 'First installment must be paid before paying second installment');
-  }
-
-  // Check if already paid
-  if (reservation.secondInstallmentPaid) {
-    throw new AppError(400, 'Second installment is already paid');
-  }
-
-  const result = await prisma.reservation.update({
-    where: { id },
+  // Update cashback status
+  await prisma.cashback.update({
+    where: { id: cashbackId },
     data: {
-      secondInstallmentPaid: true,
-      paymentStatus: PaymentStatus.total_paid
-    },
-    include: {
-      service: true,
-      user: true
+      status: 'approved'
     }
   });
-  return result;
+
+  return reservation;
 };
 
 const assignEmployee = async (
@@ -416,7 +529,9 @@ export const ReservationService = {
   getSingleReservation,
   updateReservation,
   deleteReservation,
-  confirmFirstInstallment,
-  confirmSecondInstallment,
+  processFirstInstallment,
+  processSecondInstallment,
   assignEmployee,
+  processCashback,
+  approveCashback
 };

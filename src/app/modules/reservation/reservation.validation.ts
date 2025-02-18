@@ -46,9 +46,34 @@ const assignEmployee = z.object({
   }),
 });
 
+const processFirstInstallment = z.object({
+  body: z.object({
+    paymentMethodId: z.string({
+      required_error: 'Payment method ID is required',
+    }),
+  }),
+});
+
+const processSecondInstallment = z.object({
+  body: z.object({
+    // No additional fields needed for second installment as we'll use the stored payment method
+  }),
+});
+
+const processCashback = z.object({
+  body: z.object({
+    reviewImage: z.string({
+      required_error: 'Review image is required',
+    }),
+  }),
+});
+
 export const ReservationValidation = {
   create,
   update,
   updatePayment,
   assignEmployee,
+  processFirstInstallment,
+  processSecondInstallment,
+  processCashback,
 };

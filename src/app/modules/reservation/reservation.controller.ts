@@ -84,30 +84,59 @@ const deleteReservation = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const confirmFirstInstallment = catchAsync(async (req: Request, res: Response) => {
+const processFirstInstallment = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
+  const { paymentMethodId } = req.body;
   const userId = req.user.id;
 
-  const result = await ReservationService.confirmFirstInstallment(id, userId);
+  const result = await ReservationService.processFirstInstallment(id, paymentMethodId, userId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'First installment payment confirmed successfully',
+    message: 'First installment payment processed successfully',
     data: result,
   });
 });
 
-const confirmSecondInstallment = catchAsync(async (req: Request, res: Response) => {
+const processSecondInstallment = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = req.user.id;
 
-  const result = await ReservationService.confirmSecondInstallment(id, userId);
+  const result = await ReservationService.processSecondInstallment(id, userId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'Second installment payment confirmed successfully',
+    message: 'Second installment payment processed successfully',
+    data: result,
+  });
+});
+
+const processCashback = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { reviewImage } = req.body;
+  const userId = req.user.id;
+
+  const result = await ReservationService.processCashback(id, userId, reviewImage);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Cashback request submitted successfully',
+    data: result,
+  });
+});
+
+const approveCashback = catchAsync(async (req: Request, res: Response) => {
+  const { id, cashbackId } = req.params;
+
+  const result = await ReservationService.approveCashback(id, cashbackId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Cashback approved and processed successfully',
     data: result,
   });
 });
@@ -130,7 +159,9 @@ export const ReservationController = {
   getSingleReservation,
   updateReservation,
   deleteReservation,
-  confirmFirstInstallment,
-  confirmSecondInstallment,
+  processFirstInstallment,
+  processSecondInstallment,
   assignEmployee,
+  processCashback,
+  approveCashback,
 };

@@ -7,6 +7,7 @@ export type IReservation = {
   employeeId?: string;
   providePaint: boolean;
   status: ServiceStatus;
+  customersGivenImages?: string[];
   beforeImages: string[];
   afterImages: string[];
   scheduledDate: Date | string;

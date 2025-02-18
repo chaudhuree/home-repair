@@ -20,7 +20,9 @@ enum UserRole {
 
 enum ServiceStatus {
   pending
+  accepted
   in_progress
+  work_done
   completed
   cancelled
   success
@@ -37,23 +39,37 @@ enum OrderPaymentStatus {
   success
 }
 
+enum CashbackStatus {
+  pending
+  approved
+  rejected
+}
+
+enum RefundStatus {
+  pending
+  succeeded
+  failed
+}
+
 model User {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  name          String
-  email         String   @unique
-  password      String
-  role          UserRole @default(user)
-  otp           String?
-  otpExpiry     DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  name             String
+  email            String    @unique
+  password         String
+  role             UserRole  @default(user)
+  otp              String?
+  otpExpiry        DateTime?
+  stripeCustomerId String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   // Relations
-  profile        Profile?
-  reservations   Reservation[] @relation("customer")
-  assignedJobs   Reservation[] @relation("employee")
-  orders         Order[]
-  messages       Message[]
+  profile      Profile?
+  reservations Reservation[] @relation("customer")
+  assignedJobs Reservation[] @relation("employee")
+  orders       Order[]
+  messages     Message[]
+  Cashback     Cashback[]
 }
 
 model Service {
@@ -69,60 +85,67 @@ model Service {
 }
 
 model Reservation {
-  id                    String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId                String        @db.ObjectId
-  serviceId             String        @db.ObjectId
-  employeeId            String?       @db.ObjectId
-  providePaint          Boolean       @default(false)
-  status                ServiceStatus @default(pending)
-  beforeImages          String[]
-  afterImages           String[]
-  scheduledDate         DateTime
-  workStartTime         DateTime?
-  workEndTime           DateTime?
-  amount                Float
-  firstInstallmentAmount Float
-  secondInstallmentAmount Float
-  firstInstallmentPaid   Boolean      @default(false)
-  secondInstallmentPaid  Boolean      @default(false)
-  paymentStatus         PaymentStatus @default(pending)
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  id                      String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId                  String        @db.ObjectId
+  serviceId               String        @db.ObjectId
+  employeeId              String?       @db.ObjectId
+  stripeCustomerId        String?
+  depositPaymentIntentId  String?
+  paymentMethodId         String?
+  refundId                String?
+  refundStatus            RefundStatus?
+  providePaint            Boolean       @default(false)
+  status                  ServiceStatus @default(pending)
+  customersGivenImages    String[]
+  beforeImages            String[]
+  afterImages             String[]
+  scheduledDate           DateTime
+  workStartTime           DateTime?
+  workEndTime             DateTime?
+  amount                  Float
+  firstInstallmentAmount  Float?
+  secondInstallmentAmount Float?
+  firstInstallmentPaid    Boolean       @default(false)
+  secondInstallmentPaid   Boolean       @default(false)
+  paymentStatus           PaymentStatus @default(pending)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
 
   // Relations
-  user     User     @relation("customer", fields: [userId], references: [id])
-  employee User?    @relation("employee", fields: [employeeId], references: [id])
-  service  Service  @relation(fields: [serviceId], references: [id])
+  user     User      @relation("customer", fields: [userId], references: [id])
+  employee User?     @relation("employee", fields: [employeeId], references: [id])
+  service  Service   @relation(fields: [serviceId], references: [id])
   order    Order?
   chatRoom ChatRoom?
+  Cashback Cashback?
 }
 
 model Profile {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String   @unique @db.ObjectId
-  firstName   String
-  lastName    String
-  contactNo   String?
-  address     String?
-  bio         String?
-  profileImg  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @unique @db.ObjectId
+  firstName  String
+  lastName   String
+  contactNo  String?
+  address    String?
+  bio        String?
+  profileImg String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
-  user        User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Order {
-  id             String            @id @default(auto()) @map("_id") @db.ObjectId
-  reservationId  String           @unique @db.ObjectId
-  userId         String           @db.ObjectId
-  totalAmount    Float
-  paymentIntent  String?
-  paymentStatus  OrderPaymentStatus
-  currency       String           @default("USD")
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id            String             @id @default(auto()) @map("_id") @db.ObjectId
+  reservationId String             @unique @db.ObjectId
+  userId        String             @db.ObjectId
+  totalAmount   Float
+  paymentIntent String?
+  paymentStatus OrderPaymentStatus
+  currency      String             @default("USD")
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 
   // Relations
   user        User        @relation(fields: [userId], references: [id])
@@ -130,27 +153,45 @@ model Order {
 }
 
 model ChatRoom {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  name          String    // Format: customerName_serviceName-dateOfBooking
-  reservationId String    @unique @db.ObjectId
-  participants  String[]  @db.ObjectId // Array of User IDs
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  name          String // Format: customerName_serviceName-dateOfBooking
+  reservationId String   @unique @db.ObjectId
+  participants  String[] @db.ObjectId // Array of User IDs
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
-  reservation   Reservation @relation(fields: [reservationId], references: [id])
-  messages      Message[]
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+  messages    Message[]
 }
 
 model Message {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  chatRoomId  String    @db.ObjectId
-  senderId    String    @db.ObjectId
-  content     String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  chatRoomId String   @db.ObjectId
+  senderId   String   @db.ObjectId
+  content    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
-  chatRoom    ChatRoom  @relation(fields: [chatRoomId], references: [id])
-  sender      User      @relation(fields: [senderId], references: [id])
+  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id])
+  sender   User     @relation(fields: [senderId], references: [id])
+}
+
+model Cashback {
+  id                     String         @id @default(auto()) @map("_id") @db.ObjectId
+  userId                 String         @db.ObjectId
+  reservationId          String         @unique @db.ObjectId
+  depositPaymentIntentId String?
+  amount                 Float
+  proof                  String[]
+  status                 CashbackStatus @default(pending)
+  refundId               String?
+  refundStatus           RefundStatus?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  // Relations
+  user        User        @relation(fields: [userId], references: [id])
+  reservation Reservation @relation(fields: [reservationId], references: [id])
 }

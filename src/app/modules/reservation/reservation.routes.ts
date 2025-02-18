@@ -47,13 +47,28 @@ router.patch(
 router.patch(
   '/:id/first-installment',
   auth(ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROPERTY_MANAGER),
-  ReservationController.confirmFirstInstallment
+  validateRequest(ReservationValidation.processFirstInstallment),
+  ReservationController.processFirstInstallment
 );
 
 router.patch(
   '/:id/second-installment',
   auth(ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROPERTY_MANAGER),
-  ReservationController.confirmSecondInstallment
+  validateRequest(ReservationValidation.processSecondInstallment),
+  ReservationController.processSecondInstallment
+);
+
+router.post(
+  '/:id/cashback',
+  auth(ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROPERTY_MANAGER),
+  validateRequest(ReservationValidation.processCashback),
+  ReservationController.processCashback
+);
+
+router.patch(
+  '/:id/cashback/:cashbackId/approve',
+  auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+  ReservationController.approveCashback
 );
 
 // Assign employee route (manager only)

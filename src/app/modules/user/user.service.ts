@@ -6,6 +6,9 @@ import httpStatus from 'http-status';
 import { IPaginationOptions, IGenericResponse } from '../../interface/pagination';
 import { UserRole } from '@prisma/client';
 
+
+import { PaymentService } from '../payment/payment.service';
+
 interface UserWithOptionalPassword extends Omit<User, 'password'> {
   password?: string;
 }
@@ -27,11 +30,26 @@ const calculatePagination = (options: IPaginationOptions) => {
 const registerUserIntoDB = async (payload: any) => {
   const hashedPassword: string = await bcrypt.hash(payload.password, 12);
 
+  // check if user exists
+  const isUserExists = await prisma.user.findUnique({
+    where: { email: payload.email }
+  });
+  if (isUserExists) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'User already exists');
+  }
+
+  // Create Stripe customer
+  const stripeCustomer = await PaymentService.createStripeCustomer(
+    payload.email,
+    `${payload.firstName} ${payload.lastName}`
+  );
+
   const userData: Prisma.UserCreateInput = {
     name: `${payload.firstName} ${payload.lastName}`,
     email: payload.email,
     password: hashedPassword,
     role: 'user',
+    stripeCustomerId: stripeCustomer.id,
     profile: {
       create: {
         firstName: payload.firstName,
@@ -40,14 +58,6 @@ const registerUserIntoDB = async (payload: any) => {
       }
     }
   };
-
-  // check if user exists
-  const isUserExists = await prisma.user.findUnique({
-    where: { email: payload.email }
-  });
-  if (isUserExists) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'User already exists');
-  }
 
   const result = await prisma.user.create({
     data: userData,
@@ -116,6 +126,7 @@ const getAllUsersFromDB = async (
       email: true,
       role: true,
       otp : true,
+      stripeCustomerId : true,
       otpExpiry : true,
       createdAt: true,
       updatedAt: true,
