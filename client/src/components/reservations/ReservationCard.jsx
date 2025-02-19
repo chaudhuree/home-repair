@@ -63,7 +63,7 @@ function ReservationCard({ reservation }) {
       reservation.status === 'completed' &&
       reservation.firstInstallmentPaid &&
       reservation.secondInstallmentPaid &&
-      !reservation.cashback
+      !reservation.refundId
     );
   };
 
@@ -222,7 +222,7 @@ function ReservationCard({ reservation }) {
           Amount: ${reservation.amount}
         </Typography>
         
-        {process.env.NODE_ENV === 'development' && (
+        {/* {process.env.NODE_ENV === 'development' && (
           <Box sx={{ mt: 1, mb: 1 }}>
             <Typography variant="caption" color="text.secondary">
               Debug: canMakePayments: {canMakePayments().toString()}, 
@@ -231,7 +231,7 @@ function ReservationCard({ reservation }) {
               First Amount: ${reservation.firstInstallmentAmount}
             </Typography>
           </Box>
-        )}
+        )} */}
         
         {canMakePayments() && (
           <Box sx={{ mt: 2 }}>
@@ -315,19 +315,14 @@ function ReservationCard({ reservation }) {
             </Button>
           </Box>
         )}
-        {!canRequestCashback() && reservation.cashback && (
+        {!canRequestCashback() &&  (
           <Box sx={{ mt: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              Cashback Status: 
-              <Chip 
-                label={reservation.cashback.status}
-                color={getStatusColor(reservation.cashback.status)}
-                size="small"
-                sx={{ ml: 1 }}
-              />
-              {reservation.cashback.status === 'approved' && (
+              
+              
+              {reservation.refundId && (
                 <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
-                  Amount: ${reservation.cashback.amount}
+                  Refunded Amount: ${reservation.amount * 0.05}
                 </Typography>
               )}
             </Typography>
