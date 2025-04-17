@@ -79,6 +79,22 @@ router.patch(
   ReservationController.assignEmployee
 );
 
+// Add add-on to reservation
+router.post(
+  '/:id/add-ons',
+  auth(ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROPERTY_MANAGER),
+  validateRequest(ReservationValidation.addReservationAddOn),
+  ReservationController.addReservationAddOn
+);
+
+// Remove add-on from reservation
+router.delete(
+  '/:id/add-ons',
+  auth(ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROPERTY_MANAGER),
+  validateRequest(ReservationValidation.removeReservationAddOn),
+  ReservationController.removeReservationAddOn
+);
+
 router.delete(
   '/:id',
   auth(ENUM_USER_ROLE.MANAGER),

@@ -6,6 +6,10 @@ import { ReservationRoutes } from '../modules/reservation/reservation.routes';
 import { OrderRoutes } from '../modules/order/order.routes';
 import { ChatRoutes } from '../modules/chat/chat.routes';
 import { CashbackRoutes } from '../modules/cashback/cashback.routes';
+import { AddOnRoutes } from '../modules/addOn/addOn.routes';
+import { PackageTypeRoutes } from '../modules/packageType/packageType.routes';
+import { SpaceTypeRoutes } from '../modules/spaceType/spaceType.routes';
+
 // need to import below two to upload image -> upload is the middleware
 // uploadImage is the function
 import { uploadFile } from '../utils/uploadFile';
@@ -46,6 +50,18 @@ const moduleRoutes: ModuleRoute[] = [
   {
     path: '/cashbacks',
     route: CashbackRoutes,
+  },
+  {
+    path: '/add-ons',
+    route: AddOnRoutes,
+  },
+  {
+    path: '/package-types',
+    route: PackageTypeRoutes,
+  },
+  {
+    path: '/space-types',
+    route: SpaceTypeRoutes,
   },
 ];
 

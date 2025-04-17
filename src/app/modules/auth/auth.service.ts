@@ -23,8 +23,7 @@ interface ILoginUserResponse {
 
 interface ITokenUser {
   id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
   role: UserRole;
 }
@@ -53,8 +52,7 @@ const loginUser = async (payload: ILoginUser): Promise<ILoginUserResponse> => {
 
   const tokenData: ITokenUser = {
     id: user.id,
-    firstName: user.profile?.firstName || '',
-    lastName: user.profile?.lastName || '',
+    name: user.name,
     email: user.email,
     role: user.role
   };
@@ -67,7 +65,7 @@ const loginUser = async (payload: ILoginUser): Promise<ILoginUserResponse> => {
 
   return {
     id: user.id,
-    name: user.profile?.firstName + ' ' + user.profile?.lastName,
+    name: user.name,
     email: user.email,
     role: user.role,
     accessToken
@@ -87,11 +85,11 @@ const forgotPassword = async (email: string): Promise<{ message: string }> => {
   const otp = generateOTP();
   const otpExpiry = new Date(Date.now() + 300000); // 5 minutes from now
 
-  // Type assertion to handle Prisma types
+  // Create update data for Prisma
   const updateData = {
     otp,
     otpExpiry,
-  } as const;
+  };
 
   await prisma.user.update({
     where: { email },

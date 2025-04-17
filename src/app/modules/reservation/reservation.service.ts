@@ -21,32 +21,95 @@ import { PaymentService } from '../payment/payment.service';
 const createReservation = async (
   userId: string,
   data: IReservation,
-): Promise<Reservation> => {
+): Promise<Reservation | null> => {
+  // Validate all required entities exist
   const service = await prisma.service.findUnique({
     where: { id: data.serviceId },
   });
-
   if (!service) {
     throw new AppError(404, 'Service not found');
+  }
+
+  const spaceType = await prisma.spaceType.findUnique({
+    where: { id: data.spaceTypeId },
+  });
+  if (!spaceType) {
+    throw new AppError(404, 'Space type not found');
+  }
+
+  const packageType = await prisma.packageType.findUnique({
+    where: { id: data.packageTypeId },
+  });
+  if (!packageType) {
+    throw new AppError(404, 'Package type not found');
   }
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
   });
-
   if (!user || !user.stripeCustomerId) {
     throw new AppError(404, 'User or payment information not found');
   }
 
+  // Calculate total amount based on service, spaceType, packageType, and paintPrice
+  let totalAmount = service.price + spaceType.price + packageType.price;
+  
+  // Add paint price if requested
+  if (data.providePaint && data.paintPrice) {
+    totalAmount += data.paintPrice;
+  }
+
+  // Validate and calculate add-ons price if any
+  let addOnsPrice = 0;
+  let addOnItems = [];
+  
+  if (data.addOns && data.addOns.length > 0) {
+    // Fetch all add-ons in one query for efficiency
+    const addOnIds = data.addOns.map(item => item.addOnId);
+    const addOns = await prisma.addOn.findMany({
+      where: {
+        id: { in: addOnIds }
+      }
+    });
+
+    // Validate all add-ons exist
+    if (addOns.length !== addOnIds.length) {
+      throw new AppError(404, 'One or more add-ons not found');
+    }
+
+    // Calculate total add-ons price
+    for (const addOnItem of data.addOns) {
+      const addOn = addOns.find(a => a.id === addOnItem.addOnId);
+      if (!addOn) continue; // Skip if not found (should not happen due to previous validation)
+      
+      const itemPrice = addOn.price * addOnItem.quantity;
+      addOnsPrice += itemPrice;
+      
+      // Prepare add-on items for creation
+      addOnItems.push({
+        addOnId: addOnItem.addOnId,
+        quantity: addOnItem.quantity
+      });
+    }
+    
+    // Add add-ons price to total amount
+    totalAmount += addOnsPrice;
+  }
+
   // Calculate installments (50% each)
-  const firstInstallmentAmount = data.amount * 0.5;
-  const secondInstallmentAmount = data.amount * 0.5;
+  const firstInstallmentAmount = totalAmount * 0.5;
+  const secondInstallmentAmount = totalAmount * 0.5;
 
   const result = await prisma.$transaction(async tx => {
+    // Create the reservation
     const reservation = await tx.reservation.create({
       data: {
-        ...data,
         userId,
+        serviceId: data.serviceId,
+        spaceTypeId: data.spaceTypeId,
+        packageTypeId: data.packageTypeId,
+        providePaint: data.providePaint,
+        paintPrice: data.paintPrice,
         stripeCustomerId: user.stripeCustomerId,
         firstInstallmentAmount,
         secondInstallmentAmount,
@@ -57,12 +120,32 @@ const createReservation = async (
         customersGivenImages: data.customersGivenImages || [],
         beforeImages: [],
         afterImages: [],
+        projectDescription: data.projectDescription,
+        accessInstructionDetails: data.accessInstructionDetails,
+        address: data.address,
+        userSelectedDates: data.userSelectedDates,
+        amount: totalAmount, // Use calculated amount instead of data.amount
       },
       include: {
         service: true,
+        spaceType: true,
+        packageType: true,
         user: true,
       },
     });
+
+    // Create reservation add-ons if any
+    if (addOnItems.length > 0) {
+      for (const item of addOnItems) {
+        await tx.reservationAddOn.create({
+          data: {
+            reservationId: reservation.id,
+            addOnId: item.addOnId,
+            quantity: item.quantity
+          }
+        });
+      }
+    }
 
     // Create chat room
     const chatRoomName = `${user.name} | ${service.name} | #${reservation.id}`;
@@ -75,7 +158,27 @@ const createReservation = async (
       },
     });
 
-    return reservation;
+    // Return the complete reservation with all related data
+    const completeReservation = await tx.reservation.findUnique({
+      where: { id: reservation.id },
+      include: {
+        service: true,
+        spaceType: true,
+        packageType: true,
+        user: true,
+        reservationAddOns: {
+          include: {
+            addOn: true
+          }
+        }
+      }
+    });
+    
+    if (!completeReservation) {
+      throw new AppError(500, 'Failed to retrieve created reservation');
+    }
+    
+    return completeReservation;
   });
 
   return result;
@@ -155,8 +258,16 @@ const getAllReservations = async (
           },
     include: {
       service: true,
+      spaceType: true,
+      packageType: true,
       user: true,
       employee: true,
+      reservationAddOns: {
+        include: {
+          addOn: true,
+        },
+      },
+      cashbacks: true,
     },
   });
 
@@ -180,13 +291,31 @@ const getSingleReservation = async (
   userRole: string,
 ): Promise<Reservation> => {
   const reservation = await prisma.reservation.findUnique({
-    where: {
-      id,
-    },
+    where: { id },
     include: {
       service: true,
+      spaceType: true,
+      packageType: true,
       user: true,
       employee: true,
+      reservationAddOns: {
+        include: {
+          addOn: true,
+        },
+      },
+      cashbacks: true,
+      chatRoom: {
+        include: {
+          messages: {
+            include: {
+              sender: true,
+            },
+            orderBy: {
+              createdAt: 'asc',
+            },
+          },
+        },
+      },
     },
   });
 
@@ -194,36 +323,32 @@ const getSingleReservation = async (
     throw new AppError(404, 'Reservation not found');
   }
 
-  // Role-based access control
+  // Check authorization based on role
   switch (userRole) {
     case 'user':
-    case 'property_manager':
-      // Users and property managers can only view their own reservations
+      // Users can only view their own reservations
       if (reservation.userId !== userId) {
-        throw new AppError(
-          403,
-          'You are not authorized to view this reservation',
-        );
+        throw new AppError(403, 'You are not authorized to view this reservation');
       }
       break;
-
     case 'employee':
       // Employees can only view reservations assigned to them
       if (reservation.employeeId !== userId) {
-        throw new AppError(
-          403,
-          'You are not authorized to view this reservation',
-        );
+        throw new AppError(403, 'You are not authorized to view this reservation');
       }
       break;
-
-    case 'manager':
-    case 'super_admin':
-      // Managers and super admins can view all reservations
+    case 'property_manager':
+      // Property managers can only view reservations created by them
+      if (reservation.userId !== userId) {
+        throw new AppError(403, 'You are not authorized to view this reservation');
+      }
       break;
-
+    case 'super_admin':
+    case 'manager':
+      // Super admin and manager can view all reservations
+      break;
     default:
-      throw new AppError(403, 'You are not authorized to view reservations');
+      throw new AppError(403, 'You are not authorized to view this reservation');
   }
 
   return reservation;
@@ -235,101 +360,158 @@ const updateReservation = async (
   userId: string,
   userRole: string,
 ): Promise<Reservation> => {
-  const existingReservation = await prisma.reservation.findUnique({
+  const reservation = await prisma.reservation.findUnique({
     where: { id },
+    include: {
+      user: true,
+      spaceType: true,
+      packageType: true,
+    },
   });
 
-  if (!existingReservation) {
+  if (!reservation) {
     throw new AppError(404, 'Reservation not found');
   }
 
-  // Check authorization for status updates
-  if (
-    payload.status === ServiceStatus.in_progress ||
-    payload.status === ServiceStatus.completed
-  ) {
-    // Only manager or assigned employee can update these statuses
-    const isManager = userRole === 'manager';
-    const isAssignedEmployee = existingReservation.employeeId === userId;
+  // Check authorization based on role
+  let authorized = false;
 
-    if (!isManager && !isAssignedEmployee) {
-      throw new AppError(
-        403,
-        'Only manager or assigned employee can update work status',
-      );
+  switch (userRole) {
+    case 'user':
+    case 'property_manager':
+      // Users and property managers can only update their own reservations
+      if (reservation.userId === userId) {
+        authorized = true;
+      }
+      break;
+
+    case 'employee':
+      // Employees can only update reservations assigned to them
+      if (reservation.employeeId === userId) {
+        authorized = true;
+      }
+      break;
+
+    case 'manager':
+    case 'super_admin':
+      // Managers and super admins can update all reservations
+      authorized = true;
+      break;
+
+    default:
+      authorized = false;
+  }
+
+  if (!authorized) {
+    throw new AppError(403, 'You are not authorized to update this reservation');
+  }
+
+  // Validate status transitions
+  if (payload.status && payload.status !== reservation.status) {
+    // Check if the status transition is valid
+    switch (reservation.status) {
+      case ServiceStatus.pending:
+        // From pending, can move to accepted or cancelled
+        if (
+          payload.status !== ServiceStatus.accepted && 
+          payload.status !== ServiceStatus.cancelled
+        ) {
+          throw new AppError(
+            400,
+            `Cannot transition from ${reservation.status} to ${payload.status}`,
+          );
+        }
+        break;
+
+      case ServiceStatus.accepted:
+        // From accepted, can move to assigned_employee or cancelled
+        if (
+          payload.status !== ServiceStatus.assigned_employee && 
+          payload.status !== ServiceStatus.cancelled
+        ) {
+          throw new AppError(
+            400,
+            `Cannot transition from ${reservation.status} to ${payload.status}`,
+          );
+        }
+        break;
+
+      case ServiceStatus.assigned_employee:
+        // From assigned_employee, can move to in_progress or cancelled
+        if (
+          payload.status !== ServiceStatus.in_progress && 
+          payload.status !== ServiceStatus.cancelled
+        ) {
+          throw new AppError(
+            400,
+            `Cannot transition from ${reservation.status} to ${payload.status}`,
+          );
+        }
+        break;
+
+      case ServiceStatus.in_progress:
+        // From in_progress, can move to work_done or cancelled
+        if (
+          payload.status !== ServiceStatus.work_done && 
+          payload.status !== ServiceStatus.cancelled
+        ) {
+          throw new AppError(
+            400,
+            `Cannot transition from ${reservation.status} to ${payload.status}`,
+          );
+        }
+        break;
+
+      case ServiceStatus.work_done:
+        // From work_done, can move to completed
+        if (payload.status !== ServiceStatus.completed) {
+          throw new AppError(
+            400,
+            `Cannot transition from ${reservation.status} to ${payload.status}`,
+          );
+        }
+        break;
+
+      case ServiceStatus.completed:
+        // From completed, cannot change status
+        throw new AppError(
+          400,
+          'Cannot change status of a completed reservation',
+        );
+
+      case ServiceStatus.cancelled:
+        // From cancelled, cannot change status
+        throw new AppError(
+          400,
+          'Cannot change status of a cancelled reservation',
+        );
+
+      default:
+        break;
     }
   }
 
-  // Check if trying to update status to in_progress or completed without an employee
-  if (
-    (payload.status === ServiceStatus.in_progress ||
-      payload.status === ServiceStatus.completed) &&
-    !existingReservation.employeeId
-  ) {
-    throw new AppError(
-      400,
-      'Cannot start or complete work without an assigned employee',
-    );
-  }
-
-  // Handle work start time when status changes to in_progress
-  if (payload.status === ServiceStatus.in_progress) {
-    if (!existingReservation.firstInstallmentPaid) {
-      throw new AppError(
-        400,
-        'First installment payment required before starting work',
-      );
-    }
-    payload = {
-      ...payload,
-      workStartTime: new Date(),
-    };
-  }
-
-  // Handle work end time when status changes to completed
-  if (payload.status === ServiceStatus.work_done) {
-    if (!existingReservation.workStartTime) {
-      throw new AppError(400, 'Work must be started before completion');
-    }
-    // if (!existingReservation.secondInstallmentPaid) {
-    //   throw new AppError(
-    //     400,
-    //     'Second installment payment required before completing work',
-    //   );
-    // }
-    payload = {
-      ...payload,
-      workEndTime: new Date(),
-    };
-  }
-
-  // Update payment status based on installment payments
-  if (payload.firstInstallmentPaid || payload.secondInstallmentPaid) {
-    const willFirstBePaid =
-      payload.firstInstallmentPaid ?? existingReservation.firstInstallmentPaid;
-    const willSecondBePaid =
-      payload.secondInstallmentPaid ??
-      existingReservation.secondInstallmentPaid;
-
-    if (willFirstBePaid && willSecondBePaid) {
-      payload.paymentStatus = PaymentStatus.total_paid;
-    } else if (willFirstBePaid || willSecondBePaid) {
-      payload.paymentStatus = PaymentStatus.partially_paid;
-    }
-  }
-
-  const result = await prisma.reservation.update({
+  const updatedReservation = await prisma.reservation.update({
     where: { id },
     data: payload,
     include: {
       service: true,
+      spaceType: true,
+      packageType: true,
       user: true,
       employee: true,
+      reservationAddOns: {
+        include: {
+          addOn: true,
+        },
+      },
     },
   });
 
-  return result;
+  return updatedReservation;
 };
+
+
 
 const deleteReservation = async (id: string): Promise<Reservation> => {
   const result = await prisma.reservation.delete({
@@ -561,6 +743,189 @@ const assignEmployee = async (
   return result;
 };
 
+const addReservationAddOn = async (
+  id: string,
+  addOnData: { addOnId: string; quantity: number },
+  userId: string,
+): Promise<Reservation | null> => {
+  const reservation = await prisma.reservation.findUnique({
+    where: { id },
+    include: {
+      user: true,
+      reservationAddOns: {
+        include: {
+          addOn: true,
+        },
+      },
+    },
+  });
+
+  if (!reservation) {
+    throw new AppError(404, 'Reservation not found');
+  }
+
+  // Check if user owns this reservation
+  if (reservation.userId !== userId) {
+    throw new AppError(403, 'You are not authorized to modify this reservation');
+  }
+
+  // Check if reservation status allows adding add-ons
+  if (['work_done', 'completed', 'cancelled', 'success'].includes(reservation.status)) {
+    throw new AppError(400, `Cannot add add-ons to a reservation with status: ${reservation.status}`);
+  }
+
+  // Check if the add-on exists
+  const addOn = await prisma.addOn.findUnique({
+    where: { id: addOnData.addOnId },
+  });
+
+  if (!addOn) {
+    throw new AppError(404, 'Add-on not found');
+  }
+
+  // Calculate price for this add-on
+  const addOnPrice = addOn.price * addOnData.quantity;
+
+  // Check if this add-on is already added to the reservation
+  const existingAddOn = reservation.reservationAddOns.find(
+    (item) => item.addOnId === addOnData.addOnId
+  );
+
+  let priceAdjustment = 0;
+
+  // Update reservation in a transaction to ensure data consistency
+  const updatedReservation = await prisma.$transaction(async (tx) => {
+    if (existingAddOn) {
+      // Calculate price difference based on quantity change
+      const existingPrice = existingAddOn.addOn.price * existingAddOn.quantity;
+      const newPrice = addOn.price * addOnData.quantity;
+      priceAdjustment = newPrice - existingPrice;
+
+      // Update the quantity if it already exists
+      await tx.reservationAddOn.update({
+        where: { id: existingAddOn.id },
+        data: { quantity: addOnData.quantity },
+      });
+    } else {
+      // Create a new reservation add-on
+      await tx.reservationAddOn.create({
+        data: {
+          reservationId: id,
+          addOnId: addOnData.addOnId,
+          quantity: addOnData.quantity,
+        },
+      });
+      
+      // Add the full price of the new add-on
+      priceAdjustment = addOnPrice;
+    }
+
+    // Update the reservation amount and second installment amount
+    const newTotalAmount = reservation.amount + priceAdjustment;
+    const newSecondInstallmentAmount = (reservation.secondInstallmentAmount || 0) + priceAdjustment;
+
+    return tx.reservation.update({
+      where: { id },
+      data: {
+        amount: newTotalAmount,
+        secondInstallmentAmount: newSecondInstallmentAmount,
+      },
+      include: {
+        service: true,
+        spaceType: true,
+        packageType: true,
+        user: true,
+        employee: true,
+        reservationAddOns: {
+          include: {
+            addOn: true,
+          },
+        },
+      },
+    });
+  });
+
+  return updatedReservation;
+};
+
+const removeReservationAddOn = async (
+  id: string,
+  data: { addOnId: string },
+  userId: string,
+): Promise<Reservation | null> => {
+  const reservation = await prisma.reservation.findUnique({
+    where: { id },
+    include: {
+      user: true,
+      reservationAddOns: {
+        include: {
+          addOn: true,
+        },
+      },
+    },
+  });
+
+  if (!reservation) {
+    throw new AppError(404, 'Reservation not found');
+  }
+
+  // Check if user owns this reservation
+  if (reservation.userId !== userId) {
+    throw new AppError(403, 'You are not authorized to modify this reservation');
+  }
+
+  // Check if reservation status allows removing add-ons
+  if (['work_done', 'completed', 'cancelled', 'success'].includes(reservation.status)) {
+    throw new AppError(400, `Cannot remove add-ons from a reservation with status: ${reservation.status}`);
+  }
+
+  // Find the add-on in the reservation
+  const existingAddOn = reservation.reservationAddOns.find(
+    (item) => item.addOnId === data.addOnId
+  );
+
+  if (!existingAddOn) {
+    throw new AppError(404, 'Add-on not found in this reservation');
+  }
+
+  // Calculate price to be reduced
+  const priceReduction = existingAddOn.addOn.price * existingAddOn.quantity;
+
+  // Update reservation in a transaction to ensure data consistency
+  const updatedReservation = await prisma.$transaction(async (tx) => {
+    // Delete the reservation add-on
+    await tx.reservationAddOn.delete({
+      where: { id: existingAddOn.id },
+    });
+
+    // Update the reservation amount and second installment amount
+    const newTotalAmount = reservation.amount - priceReduction;
+    const newSecondInstallmentAmount = (reservation.secondInstallmentAmount || 0) - priceReduction;
+
+    return tx.reservation.update({
+      where: { id },
+      data: {
+        amount: newTotalAmount,
+        secondInstallmentAmount: newSecondInstallmentAmount,
+      },
+      include: {
+        service: true,
+        spaceType: true,
+        packageType: true,
+        user: true,
+        employee: true,
+        reservationAddOns: {
+          include: {
+            addOn: true,
+          },
+        },
+      },
+    });
+  });
+
+  return updatedReservation;
+};
+
 export const ReservationService = {
   createReservation,
   getAllReservations,
@@ -572,4 +937,6 @@ export const ReservationService = {
   assignEmployee,
   processCashback,
   approveCashback,
+  addReservationAddOn,
+  removeReservationAddOn,
 };

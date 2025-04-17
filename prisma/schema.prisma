@@ -78,6 +78,7 @@ model Service {
   name        String
   description String
   image       String
+  price       Float
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -85,10 +86,44 @@ model Service {
   reservations Reservation[]
 }
 
+model SpaceType {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String
+  price       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  reservations Reservation[] @relation("SpaceTypeReservations")
+}
+
+model PackageType {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String[]
+  price       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  reservations Reservation[] @relation("PackageTypeReservations")
+}
+
+model AddOn {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String
+  price       Float
+  quantity    Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  reservationAddOns ReservationAddOn[]
+}
+
+
 model Reservation {
   id                      String        @id @default(auto()) @map("_id") @db.ObjectId
   userId                  String        @db.ObjectId
   serviceId               String        @db.ObjectId
+  spaceTypeId             String        @db.ObjectId
+  packageTypeId           String        @db.ObjectId
   employeeId              String?       @db.ObjectId
   stripeCustomerId        String?
   depositPaymentIntentId  String?
@@ -97,14 +132,19 @@ model Reservation {
   refundId                String?
   refundStatus            RefundStatus?
   providePaint            Boolean       @default(false)
+  paintPrice              Float?
   status                  ServiceStatus @default(pending)
   customersGivenImages    String[]
   beforeImages            String[]
   afterImages             String[]
-  scheduledDate           DateTime
+  projectDescription      String?
+  accessInstructionDetails String?
+  address                 Address
+  userSelectedDates       DateTime[]
+  scheduledDate           DateTime?
   workStartTime           DateTime?
   workEndTime             DateTime?
-  amount                  Float
+  amount             Float
   firstInstallmentAmount  Float?
   secondInstallmentAmount Float?
   firstInstallmentPaid    Boolean       @default(false)
@@ -114,13 +154,17 @@ model Reservation {
   updatedAt               DateTime      @updatedAt
 
   // Relations
-  user     User      @relation("customer", fields: [userId], references: [id])
-  employee User?     @relation("employee", fields: [employeeId], references: [id])
-  service  Service   @relation(fields: [serviceId], references: [id])
-  order    Order?
-  chatRoom ChatRoom?
-  cashbacks Cashback[]
+  user         User        @relation("customer", fields: [userId], references: [id])
+  employee     User?       @relation("employee", fields: [employeeId], references: [id])
+  service      Service     @relation(fields: [serviceId], references: [id])
+  spaceType    SpaceType   @relation("SpaceTypeReservations", fields: [spaceTypeId], references: [id])
+  packageType  PackageType @relation("PackageTypeReservations", fields: [packageTypeId], references: [id])
+  reservationAddOns ReservationAddOn[]
+  order        Order?
+  chatRoom     ChatRoom?
+  cashbacks    Cashback[]
 }
+
 
 model Profile {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
@@ -178,6 +222,23 @@ model Message {
   // Relations
   chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id])
   sender   User     @relation(fields: [senderId], references: [id])
+}
+
+type Address {
+  streetAddress      String
+  apartmentSuitUnit  String
+  city               String
+  state              String
+}
+
+model ReservationAddOn {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  reservationId String      @db.ObjectId
+  addOnId       String      @db.ObjectId
+  quantity      Int
+
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  addOn         AddOn       @relation(fields: [addOnId], references: [id])
 }
 
 model Cashback {

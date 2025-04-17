@@ -1,21 +1,54 @@
 import { z } from 'zod';
-import { ServiceStatus, PaymentStatus } from '@prisma/client';
+import { ServiceStatus, PaymentStatus, RefundStatus } from '@prisma/client';
+
+const addressSchema = z.object({
+  streetAddress: z.string({
+    required_error: 'Street address is required',
+  }),
+  apartmentSuitUnit: z.string({
+    required_error: 'Apartment/Suite/Unit is required',
+  }),
+  city: z.string({
+    required_error: 'City is required',
+  }),
+  state: z.string({
+    required_error: 'State is required',
+  }),
+});
+
+const reservationAddOnSchema = z.object({
+  addOnId: z.string({
+    required_error: 'AddOn ID is required',
+  }),
+  quantity: z.number({
+    required_error: 'Quantity is required',
+  }).min(1, 'Quantity must be at least 1'),
+});
 
 const create = z.object({
   body: z.object({
     serviceId: z.string({
       required_error: 'Service ID is required',
     }),
+    spaceTypeId: z.string({
+      required_error: 'Space Type ID is required',
+    }),
+    packageTypeId: z.string({
+      required_error: 'Package Type ID is required',
+    }),
     providePaint: z.boolean({
       required_error: 'Provide paint option is required',
     }),
-    beforeImages: z.array(z.string()).min(1, 'At least one before image is required'),
-    scheduledDate: z.string({
-      required_error: 'Scheduled date is required',
-    }),
+    paintPrice: z.number().optional(),
+    customersGivenImages: z.array(z.string()).min(1, 'At least one image is required'),
+    projectDescription: z.string().optional(),
+    accessInstructionDetails: z.string().optional(),
+    address: addressSchema,
+    userSelectedDates: z.array(z.string()).min(1, 'At least one date is required'),
     amount: z.number({
       required_error: 'Amount is required',
-    }).min(0, 'Amount must be positive'),
+    }).min(0, 'Amount must be positive').optional(), // Make amount optional as it will be calculated on the server
+    addOns: z.array(reservationAddOnSchema).optional(),
   }),
 });
 
@@ -23,9 +56,16 @@ const update = z.object({
   body: z.object({
     employeeId: z.string().optional(),
     status: z.enum([...Object.values(ServiceStatus)] as [string, ...string[]]).optional(),
+    beforeImages: z.array(z.string()).optional(),
     afterImages: z.array(z.string()).optional(),
+    projectDescription: z.string().optional(),
+    accessInstructionDetails: z.string().optional(),
+    scheduledDate: z.string().optional(),
     firstInstallmentPaid: z.boolean().optional(),
     secondInstallmentPaid: z.boolean().optional(),
+    workStartTime: z.string().optional(),
+    workEndTime: z.string().optional(),
+    refundStatus: z.enum([...Object.values(RefundStatus)] as [string, ...string[]]).optional(),
   }),
 });
 
@@ -68,6 +108,25 @@ const processCashback = z.object({
   }),
 });
 
+const addReservationAddOn = z.object({
+  body: z.object({
+    addOnId: z.string({
+      required_error: 'AddOn ID is required',
+    }),
+    quantity: z.number({
+      required_error: 'Quantity is required',
+    }).min(1, 'Quantity must be at least 1'),
+  }),
+});
+
+const removeReservationAddOn = z.object({
+  body: z.object({
+    addOnId: z.string({
+      required_error: 'AddOn ID is required',
+    }),
+  }),
+});
+
 export const ReservationValidation = {
   create,
   update,
@@ -76,4 +135,6 @@ export const ReservationValidation = {
   processFirstInstallment,
   processSecondInstallment,
   processCashback,
+  addReservationAddOn,
+  removeReservationAddOn,
 };

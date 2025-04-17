@@ -2,8 +2,7 @@ import { JwtPayload } from "jsonwebtoken";
 
 export interface ITokenUser {
   id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
   role: string;
 }

@@ -153,6 +153,32 @@ const assignEmployee = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const addReservationAddOn = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+  const result = await ReservationService.addReservationAddOn(id, req.body, userId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Add-on added to reservation successfully',
+    data: result,
+  });
+});
+
+const removeReservationAddOn = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+  const result = await ReservationService.removeReservationAddOn(id, req.body, userId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Add-on removed from reservation successfully',
+    data: result,
+  });
+});
+
 export const ReservationController = {
   createReservation,
   getAllReservations,
@@ -164,4 +190,6 @@ export const ReservationController = {
   assignEmployee,
   processCashback,
   approveCashback,
+  addReservationAddOn,
+  removeReservationAddOn,
 };
