@@ -65,12 +65,13 @@ model User {
   updatedAt        DateTime  @updatedAt
 
   // Relations
-  profile      Profile?
-  reservations Reservation[] @relation("customer")
-  assignedJobs Reservation[] @relation("employee")
-  orders       Order[]
-  messages     Message[]
-  cashbacks    Cashback[]
+  profile           Profile?
+  reservations      Reservation[] @relation("customer")
+  assignedJobs      Reservation[] @relation("employee")
+  orders            Order[]
+  messages          Message[]
+  cashbacks         Cashback[]
+  supplyAssignments SupplyAssignment[]
 }
 
 model Service {
@@ -255,4 +256,34 @@ model Cashback {
   // Relations
   user        User        @relation(fields: [userId], references: [id])
   reservation Reservation @relation(fields: [reservationId], references: [id])
+}
+
+model Supply {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  category    String
+  measureUnit String
+  quantity    Int
+  status      Boolean  @default(true) // true = available, false = not available
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  supplyAssignments SupplyAssignment[]
+}
+
+model SupplyAssignment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  supplyId  String   @db.ObjectId
+  userId    String   @db.ObjectId
+  quantity  Int
+  isReturned Boolean  @default(false)
+  assignDate DateTime @default(now())
+  returnDate DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  supply Supply @relation(fields: [supplyId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 }
