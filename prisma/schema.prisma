@@ -123,8 +123,8 @@ model Reservation {
   id                      String        @id @default(auto()) @map("_id") @db.ObjectId
   userId                  String        @db.ObjectId
   serviceId               String        @db.ObjectId
-  spaceTypeId             String        @db.ObjectId
-  packageTypeId           String        @db.ObjectId
+  spaceTypeId             String?        @db.ObjectId
+  packageTypeId           String?        @db.ObjectId
   employeeId              String?       @db.ObjectId
   stripeCustomerId        String?
   depositPaymentIntentId  String?
@@ -158,8 +158,8 @@ model Reservation {
   user         User        @relation("customer", fields: [userId], references: [id])
   employee     User?       @relation("employee", fields: [employeeId], references: [id])
   service      Service     @relation(fields: [serviceId], references: [id])
-  spaceType    SpaceType   @relation("SpaceTypeReservations", fields: [spaceTypeId], references: [id])
-  packageType  PackageType @relation("PackageTypeReservations", fields: [packageTypeId], references: [id])
+  spaceType    SpaceType?  @relation("SpaceTypeReservations", fields: [spaceTypeId], references: [id])
+  packageType  PackageType? @relation("PackageTypeReservations", fields: [packageTypeId], references: [id])
   reservationAddOns ReservationAddOn[]
   order        Order?
   chatRoom     ChatRoom?

@@ -30,18 +30,32 @@ const createReservation = async (
     throw new AppError(404, 'Service not found');
   }
 
-  const spaceType = await prisma.spaceType.findUnique({
-    where: { id: data.spaceTypeId },
-  });
-  if (!spaceType) {
-    throw new AppError(404, 'Space type not found');
+  // Validate that at least one of spaceTypeId or packageTypeId is provided
+  if ((!data.spaceTypeId || data.spaceTypeId.trim() === '') && 
+      (!data.packageTypeId || data.packageTypeId.trim() === '')) {
+    throw new AppError(400, 'At least one of spaceTypeId or packageTypeId must be provided');
   }
 
-  const packageType = await prisma.packageType.findUnique({
-    where: { id: data.packageTypeId },
-  });
-  if (!packageType) {
-    throw new AppError(404, 'Package type not found');
+  // Only validate spaceType if spaceTypeId is provided and not empty
+  let spaceType = null;
+  if (data.spaceTypeId && data.spaceTypeId.trim() !== '') {
+    spaceType = await prisma.spaceType.findUnique({
+      where: { id: data.spaceTypeId },
+    });
+    if (!spaceType) {
+      throw new AppError(404, 'Space type not found');
+    }
+  }
+
+  // Only validate packageType if packageTypeId is provided and not empty
+  let packageType = null;
+  if (data.packageTypeId && data.packageTypeId.trim() !== '') {
+    packageType = await prisma.packageType.findUnique({
+      where: { id: data.packageTypeId },
+    });
+    if (!packageType) {
+      throw new AppError(404, 'Package type not found');
+    }
   }
 
   const user = await prisma.user.findUnique({
@@ -51,11 +65,23 @@ const createReservation = async (
     throw new AppError(404, 'User or payment information not found');
   }
 
-  // Calculate total amount based on service, spaceType, packageType, and paintPrice
-  let totalAmount = service.price + spaceType.price + packageType.price;
+  // Calculate total amount based on package selection
+  let totalAmount = 0;
   
-  // Add paint price if requested
-  if (data.providePaint && data.paintPrice) {
+  // Calculate total amount based on what's provided
+  if (data.packageTypeId && packageType) {
+    // If package is selected and found, use package price
+    totalAmount = packageType.price;
+  } else if (data.spaceTypeId && spaceType) {
+    // If space type is selected and found, use space type price
+    totalAmount = spaceType.price;
+  } else {
+    // This should not happen due to earlier validation, but just in case
+    throw new AppError(400, 'Unable to calculate price: no valid package or space type');
+  }
+  
+  // Add paint price if providePaint is false (user doesn't provide their own paint)
+  if (!data.providePaint && data.paintPrice) {
     totalAmount += data.paintPrice;
   }
 
@@ -102,30 +128,41 @@ const createReservation = async (
 
   const result = await prisma.$transaction(async tx => {
     // Create the reservation
+    // Prepare the base reservation data
+    const reservationData: any = {
+      userId,
+      serviceId: data.serviceId,
+      providePaint: data.providePaint,
+      paintPrice: data.paintPrice,
+      stripeCustomerId: user.stripeCustomerId,
+      firstInstallmentAmount,
+      secondInstallmentAmount,
+      firstInstallmentPaid: false,
+      secondInstallmentPaid: false,
+      status: ServiceStatus.pending,
+      paymentStatus: PaymentStatus.pending,
+      customersGivenImages: data.customersGivenImages || [],
+      beforeImages: [],
+      afterImages: [],
+      projectDescription: data.projectDescription,
+      accessInstructionDetails: data.accessInstructionDetails,
+      address: data.address,
+      userSelectedDates: data.userSelectedDates,
+      amount: totalAmount // Use calculated amount instead of data.amount
+    };
+    
+    // Only add spaceTypeId if it's provided and not empty
+    if (data.spaceTypeId && data.spaceTypeId.trim() !== '') {
+      reservationData.spaceTypeId = data.spaceTypeId;
+    }
+    
+    // Only add packageTypeId if it's provided and not empty
+    if (data.packageTypeId && data.packageTypeId.trim() !== '') {
+      reservationData.packageTypeId = data.packageTypeId;
+    }
+    
     const reservation = await tx.reservation.create({
-      data: {
-        userId,
-        serviceId: data.serviceId,
-        spaceTypeId: data.spaceTypeId,
-        packageTypeId: data.packageTypeId,
-        providePaint: data.providePaint,
-        paintPrice: data.paintPrice,
-        stripeCustomerId: user.stripeCustomerId,
-        firstInstallmentAmount,
-        secondInstallmentAmount,
-        firstInstallmentPaid: false,
-        secondInstallmentPaid: false,
-        status: ServiceStatus.pending,
-        paymentStatus: PaymentStatus.pending,
-        customersGivenImages: data.customersGivenImages || [],
-        beforeImages: [],
-        afterImages: [],
-        projectDescription: data.projectDescription,
-        accessInstructionDetails: data.accessInstructionDetails,
-        address: data.address,
-        userSelectedDates: data.userSelectedDates,
-        amount: totalAmount, // Use calculated amount instead of data.amount
-      },
+      data: reservationData,
       include: {
         service: true,
         spaceType: true,
