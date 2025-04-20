@@ -14,6 +14,13 @@ router.post(
   ReservationController.createReservation
 );
 
+router.post(
+  '/with-payment',
+  auth(ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROPERTY_MANAGER),
+  validateRequest(ReservationValidation.createWithPayment),
+  ReservationController.createReservationWithPayment
+);
+
 router.get(
   '/',
   auth(

@@ -963,6 +963,28 @@ const removeReservationAddOn = async (
   return updatedReservation;
 };
 
+const createReservationWithPayment = async (
+  userId: string,
+  data: IReservation,
+  paymentMethodId: string,
+): Promise<Reservation | null> => {
+  // Create the reservation first
+  const reservation = await createReservation(userId, data);
+  
+  if (!reservation) {
+    throw new AppError(500, 'Failed to create reservation');
+  }
+  
+  // Process the first installment payment
+  const updatedReservation = await processFirstInstallment(
+    reservation.id,
+    paymentMethodId,
+    userId
+  );
+  
+  return updatedReservation;
+};
+
 export const ReservationService = {
   createReservation,
   getAllReservations,
@@ -976,4 +998,5 @@ export const ReservationService = {
   approveCashback,
   addReservationAddOn,
   removeReservationAddOn,
+  createReservationWithPayment,
 };

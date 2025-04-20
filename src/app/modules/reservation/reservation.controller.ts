@@ -179,6 +179,23 @@ const removeReservationAddOn = catchAsync(async (req: Request, res: Response) =>
   });
 });
 
+const createReservationWithPayment = catchAsync(async (req: Request, res: Response) => {
+  const { paymentMethodId, ...reservationData } = req.body;
+  
+  const result = await ReservationService.createReservationWithPayment(
+    req.user.id,
+    reservationData,
+    paymentMethodId
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: 'Reservation created and first installment processed successfully',
+    data: result,
+  });
+});
+
 export const ReservationController = {
   createReservation,
   getAllReservations,
@@ -192,4 +209,5 @@ export const ReservationController = {
   approveCashback,
   addReservationAddOn,
   removeReservationAddOn,
+  createReservationWithPayment,
 };

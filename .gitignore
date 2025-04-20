@@ -8,3 +8,4 @@ generate-module.ts
 # Build
 dist
 .windsurfrules
+.vercel

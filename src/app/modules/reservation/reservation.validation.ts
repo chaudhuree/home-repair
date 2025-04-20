@@ -127,6 +127,38 @@ const removeReservationAddOn = z.object({
   }),
 });
 
+const createWithPayment = z.object({
+  body: z.object({
+    // Combine reservation data with payment method ID
+    serviceId: z.string({
+      required_error: 'Service ID is required',
+    }),
+    spaceTypeId: z.string({
+      required_error: 'Space Type ID is required',
+    }),
+    packageTypeId: z.string({
+      required_error: 'Package Type ID is required',
+    }),
+    providePaint: z.boolean({
+      required_error: 'Provide paint option is required',
+    }),
+    paintPrice: z.number().optional(),
+    customersGivenImages: z.array(z.string()).min(1, 'At least one image is required'),
+    projectDescription: z.string().optional(),
+    accessInstructionDetails: z.string().optional(),
+    address: addressSchema,
+    userSelectedDates: z.array(z.string()).min(1, 'At least one date is required'),
+    amount: z.number({
+      required_error: 'Amount is required',
+    }).min(0, 'Amount must be positive').optional(), // Make amount optional as it will be calculated on the server
+    addOns: z.array(reservationAddOnSchema).optional(),
+    // Payment method ID for processing first installment
+    paymentMethodId: z.string({
+      required_error: 'Payment method ID is required',
+    }),
+  }),
+});
+
 export const ReservationValidation = {
   create,
   update,
@@ -137,4 +169,5 @@ export const ReservationValidation = {
   processCashback,
   addReservationAddOn,
   removeReservationAddOn,
+  createWithPayment,
 };
