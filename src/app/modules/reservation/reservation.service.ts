@@ -12,7 +12,7 @@ import {
   IUpdateReservation,
   IAssignEmployee,
 } from './reservation.interface';
-import { IPaginationOptions } from '../../interface/pagination';
+import { IPaginationOptions, IGenericResponse } from '../../interface/pagination';
 import calculatePagination from '../../utils/calculatePagination';
 import { reservationSearchableFields } from './reservation.constant';
 import AppError from '../../errors/AppError';
@@ -985,6 +985,538 @@ const createReservationWithPayment = async (
   return updatedReservation;
 };
 
+const getUnassignedReservations = async (
+  options: IPaginationOptions,
+  status?: ServiceStatus
+): Promise<IGenericResponse<Reservation[]>> => {
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Build the where condition
+  const whereCondition: Prisma.ReservationWhereInput = {
+    status: {
+      in: ['pending', 'accepted']
+    }
+  };
+
+  // Get reservations
+  const reservations = await prisma.reservation.findMany({
+    where: whereCondition,
+    skip,
+    take: limit,
+    orderBy: {
+      [sortBy]: sortOrder,
+    },
+    include: {
+      service: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          profile: true,
+        },
+      },
+      spaceType: true,
+      packageType: true,
+      reservationAddOns: {
+        include: {
+          addOn: true,
+        },
+      },
+    },
+  });
+
+  // Get total count
+  const total = await prisma.reservation.count({
+    where: whereCondition,
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: 'Unassigned reservations retrieved successfully',
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: reservations,
+  };
+};
+
+const getOngoingJobs = async (
+  options: IPaginationOptions
+): Promise<IGenericResponse<Reservation[]>> => {
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Build the where condition for ongoing jobs
+  // Ongoing jobs are those with status 'assigned_employee' or 'in_progress'
+  const whereCondition: Prisma.ReservationWhereInput = {
+    status: {
+      in: ['assigned_employee', 'in_progress'],
+    },
+  };
+
+  // Get reservations
+  const reservations = await prisma.reservation.findMany({
+    where: whereCondition,
+    skip,
+    take: limit,
+    orderBy: {
+      [sortBy]: sortOrder,
+    },
+    include: {
+      service: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          profile: true,
+        },
+      },
+      employee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          profile: true,
+        },
+      },
+      spaceType: true,
+      packageType: true,
+      reservationAddOns: {
+        include: {
+          addOn: true,
+        },
+      },
+    },
+  });
+
+  // Get total count
+  const total = await prisma.reservation.count({
+    where: whereCondition,
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: 'Ongoing jobs retrieved successfully',
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: reservations,
+  };
+};
+
+const getUpcomingJobs = async (
+  options: IPaginationOptions
+): Promise<IGenericResponse<Reservation[]>> => {
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Build the where condition for upcoming jobs
+  // Upcoming jobs are those with status 'accepted' and have a scheduled date in the future
+  const whereCondition: Prisma.ReservationWhereInput = {
+    // status: 'accepted',
+    firstInstallmentPaid: true,
+    scheduledDate: {
+      gte: new Date(), // Date greater than or equal to current date
+    },
+  };
+
+  // Get reservations
+  const reservations = await prisma.reservation.findMany({
+    where: whereCondition,
+    skip,
+    take: limit,
+    orderBy: {
+      [sortBy]: sortOrder,
+    },
+    include: {
+      service: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          profile: true,
+        },
+      },
+      spaceType: true,
+      packageType: true,
+      reservationAddOns: {
+        include: {
+          addOn: true,
+        },
+      },
+    },
+  });
+
+  // Get total count
+  const total = await prisma.reservation.count({
+    where: whereCondition,
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: 'Upcoming jobs retrieved successfully',
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: reservations,
+  };
+};
+
+const getEmployeeJobs = async (
+  employeeId: string,
+  options: IPaginationOptions
+): Promise<IGenericResponse<Reservation[]>> => {
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Build the where condition for jobs assigned to a specific employee
+  const whereCondition: Prisma.ReservationWhereInput = {
+    employeeId: employeeId,
+  };
+
+  // Get reservations
+  const reservations = await prisma.reservation.findMany({
+    where: whereCondition,
+    skip,
+    take: limit,
+    orderBy: {
+      [sortBy]: sortOrder,
+    },
+    include: {
+      service: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          profile: true,
+        },
+      },
+      spaceType: true,
+      packageType: true,
+      reservationAddOns: {
+        include: {
+          addOn: true,
+        },
+      },
+    },
+  });
+
+  // Get total count
+  const total = await prisma.reservation.count({
+    where: whereCondition,
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: 'Employee jobs retrieved successfully',
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: reservations,
+  };
+};
+
+const getTransactionHistory = async (
+  options: IPaginationOptions
+): Promise<IGenericResponse<any[]>> => {
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Get all reservations with payment information
+  const reservations = await prisma.reservation.findMany({
+    where: {
+      OR: [
+        { depositPaymentIntentId: { not: null } },
+        { finalPaymentIntentId: { not: null } },
+        { refundId: { not: null } },
+      ],
+    },
+    orderBy: {
+      [sortBy]: sortOrder,
+    },
+    select: {
+      id: true,
+      userId: true,
+      serviceId: true,
+      service: {
+        select: {
+          name: true,
+        },
+      },
+      user: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+      depositPaymentIntentId: true,
+      finalPaymentIntentId: true,
+      paymentMethodId: true,
+      refundId: true,
+      amount: true,
+      firstInstallmentAmount: true,
+      secondInstallmentAmount: true,
+      firstInstallmentPaid: true,
+      secondInstallmentPaid: true,
+      paymentStatus: true,
+      refundStatus: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  // Get all approved cashbacks
+  const cashbacks = await prisma.cashback.findMany({
+    where: {
+      status: 'approved',
+    },
+    include: {
+      reservation: {
+        select: {
+          id: true,
+          serviceId: true,
+          service: {
+            select: {
+              name: true,
+            },
+          },
+          refundId: true,
+        },
+      },
+      user: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  // Transform the data to match the required transaction history format
+  const transactions = [];
+
+  // Add reservation payment transactions
+  for (const reservation of reservations) {
+    // Add first installment transaction if it exists
+    if (reservation.depositPaymentIntentId) {
+      transactions.push({
+        transactionDate: reservation.createdAt,
+        transactionId: reservation.depositPaymentIntentId,
+        serviceId: reservation.serviceId,
+        serviceName: reservation.service.name,
+        userName: reservation.user.name,
+        userEmail: reservation.user.email,
+        paymentMethod: 'Card',
+        amount: reservation.firstInstallmentAmount,
+        paidStatus: reservation.firstInstallmentPaid ? 'paid' : 'pending',
+        type: 'payment',
+        description: `First installment payment for ${reservation.service.name}`,
+      });
+    }
+
+    // Add second installment transaction if it exists
+    if (reservation.finalPaymentIntentId) {
+      transactions.push({
+        transactionDate: reservation.updatedAt,
+        transactionId: reservation.finalPaymentIntentId,
+        serviceId: reservation.serviceId,
+        serviceName: reservation.service.name,
+        userName: reservation.user.name,
+        userEmail: reservation.user.email,
+        paymentMethod: 'Card',
+        amount: reservation.secondInstallmentAmount,
+        paidStatus: reservation.secondInstallmentPaid ? 'paid' : 'pending',
+        type: 'payment',
+        description: `Final payment for ${reservation.service.name}`,
+      });
+    }
+
+    // Add refund transaction if applicable
+    if (reservation.refundStatus && reservation.refundId) {
+      transactions.push({
+        transactionDate: reservation.updatedAt,
+        transactionId: reservation.refundId,
+        serviceId: reservation.serviceId,
+        serviceName: reservation.service.name,
+        userName: reservation.user.name,
+        userEmail: reservation.user.email,
+        paymentMethod: 'Card',
+        amount: reservation.amount,
+        paidStatus: reservation.refundStatus.toLowerCase(),
+        type: 'refund',
+        description: `Refund for ${reservation.service.name}`,
+      });
+    }
+  }
+
+  // Add cashback transactions
+  for (const cashback of cashbacks) {
+    transactions.push({
+      transactionDate: cashback.updatedAt,
+      transactionId: cashback.id,
+      serviceId: cashback.reservation.serviceId,
+      serviceName: cashback.reservation.service.name,
+      userName: cashback.user.name,
+      userEmail: cashback.user.email,
+      paymentMethod: 'Card',
+      amount: cashback.amount,
+      paidStatus: 'approved',
+      type: 'cashback',
+      description: `Cashback for service ${cashback.reservation.service.name}`,
+      refundId: cashback.reservation.refundId,
+    });
+  }
+
+  // Sort transactions by date (newest first)
+  transactions.sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
+
+  // Apply pagination to the sorted array
+  const paginatedTransactions = transactions.slice(skip, skip + limit);
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: 'Transaction history retrieved successfully',
+    meta: {
+      page,
+      limit,
+      total: transactions.length,
+      totalPage: Math.ceil(transactions.length / limit),
+    },
+    data: paginatedTransactions,
+  };
+};
+
+const getAllCashbacks = async (
+  options: IPaginationOptions,
+  status?: string
+): Promise<IGenericResponse<any[]>> => {
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Build where condition
+  const whereCondition: Prisma.CashbackWhereInput = {};
+  
+  // Add status filter if provided
+  if (status) {
+    whereCondition.status = status as any;
+  }
+
+  // Get cashbacks with pagination
+  const cashbacks = await prisma.cashback.findMany({
+    where: whereCondition,
+    skip,
+    take: limit,
+    orderBy: {
+      [sortBy]: sortOrder,
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          profile: true,
+        },
+      },
+      reservation: {
+        select: {
+          id: true,
+          service: true,
+          refundId: true,
+          refundStatus: true,
+        },
+      },
+    },
+  });
+
+  // Get total count
+  const total = await prisma.cashback.count({
+    where: whereCondition,
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: 'Cashbacks retrieved successfully',
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: cashbacks,
+  };
+};
+
+const scheduleReservation = async (id: string, scheduledDate: Date | string): Promise<Reservation> => {
+  // Check if reservation exists
+  const reservation = await prisma.reservation.findUnique({
+    where: { id },
+  });
+
+  if (!reservation) {
+    throw new AppError(404, 'Reservation not found');
+  }
+
+  // Update the scheduled date
+  const updatedReservation = await prisma.reservation.update({
+    where: { id },
+    data: { 
+      scheduledDate: new Date(scheduledDate),
+      status: ServiceStatus.assigned_employee // Update status to assigned_employee
+    },
+    include: {
+      service: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          profile: true,
+        },
+      },
+      employee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      },
+      spaceType: true,
+      packageType: true,
+      reservationAddOns: {
+        include: {
+          addOn: true,
+        },
+      },
+    },
+  });
+
+  return updatedReservation;
+};
+
 export const ReservationService = {
   createReservation,
   getAllReservations,
@@ -999,4 +1531,11 @@ export const ReservationService = {
   addReservationAddOn,
   removeReservationAddOn,
   createReservationWithPayment,
+  getUnassignedReservations,
+  getOngoingJobs,
+  getUpcomingJobs,
+  getEmployeeJobs,
+  getTransactionHistory,
+  getAllCashbacks,
+  scheduleReservation,
 };

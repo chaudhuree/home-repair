@@ -30,12 +30,8 @@ const create = z.object({
     serviceId: z.string({
       required_error: 'Service ID is required',
     }),
-    spaceTypeId: z.string({
-      required_error: 'Space Type ID is required',
-    }),
-    packageTypeId: z.string({
-      required_error: 'Package Type ID is required',
-    }),
+    spaceTypeId: z.string().optional(),
+    packageTypeId: z.string().optional(),
     providePaint: z.boolean({
       required_error: 'Provide paint option is required',
     }),
@@ -49,6 +45,9 @@ const create = z.object({
       required_error: 'Amount is required',
     }).min(0, 'Amount must be positive').optional(), // Make amount optional as it will be calculated on the server
     addOns: z.array(reservationAddOnSchema).optional(),
+  }).refine(data => !!data.spaceTypeId || !!data.packageTypeId, {
+    message: 'At least one of spaceTypeId or packageTypeId must be provided',
+    path: ['spaceTypeId', 'packageTypeId']
   }),
 });
 
@@ -133,12 +132,8 @@ const createWithPayment = z.object({
     serviceId: z.string({
       required_error: 'Service ID is required',
     }),
-    spaceTypeId: z.string({
-      required_error: 'Space Type ID is required',
-    }),
-    packageTypeId: z.string({
-      required_error: 'Package Type ID is required',
-    }),
+    spaceTypeId: z.string().optional(),
+    packageTypeId: z.string().optional(),
     providePaint: z.boolean({
       required_error: 'Provide paint option is required',
     }),
@@ -156,6 +151,17 @@ const createWithPayment = z.object({
     paymentMethodId: z.string({
       required_error: 'Payment method ID is required',
     }),
+  }).refine(data => !!data.spaceTypeId || !!data.packageTypeId, {
+    message: 'At least one of spaceTypeId or packageTypeId must be provided',
+    path: ['spaceTypeId', 'packageTypeId']
+  }),
+});
+
+const scheduleReservationZodSchema = z.object({
+  body: z.object({
+    scheduledDate: z.string({
+      required_error: 'Scheduled date is required',
+    }),
   }),
 });
 
@@ -170,4 +176,5 @@ export const ReservationValidation = {
   addReservationAddOn,
   removeReservationAddOn,
   createWithPayment,
+  scheduleReservationZodSchema,
 };

@@ -1,11 +1,13 @@
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
-import { ReservationService } from './reservation.service';
 import catchAsync from '../../utils/catchAsync';
+import { ReservationService } from './reservation.service';
 import sendResponse from '../../utils/sendResponse';
+import AppError from '../../errors/AppError';
 import pickValidFields from '../../utils/pickValidFields';
 import { IPaginationOptions } from '../../interface/pagination';
 import { reservationFilterableFields } from './reservation.constant';
+import { ServiceStatus } from '@prisma/client';
 
 const createReservation = catchAsync(async (req: Request, res: Response) => {
   const result = await ReservationService.createReservation(req.user.id, req.body);
@@ -196,6 +198,147 @@ const createReservationWithPayment = catchAsync(async (req: Request, res: Respon
   });
 });
 
+const getUnassignedReservations = catchAsync(async (req: Request, res: Response) => {
+  const options: IPaginationOptions = {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 10,
+    sortBy: req.query.sortBy?.toString(),
+    sortOrder: req.query.sortOrder?.toString() as 'asc' | 'desc'
+  };
+  
+  // Get status filter if provided
+  const status = req.query.status as ServiceStatus | undefined;
+
+  const result = await ReservationService.getUnassignedReservations(options, status);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Unassigned reservations retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+const getOngoingJobs = catchAsync(async (req: Request, res: Response) => {
+  const options: IPaginationOptions = {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 10,
+    sortBy: req.query.sortBy?.toString(),
+    sortOrder: req.query.sortOrder?.toString() as 'asc' | 'desc'
+  };
+
+  const result = await ReservationService.getOngoingJobs(options);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Ongoing jobs retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+const getUpcomingJobs = catchAsync(async (req: Request, res: Response) => {
+  const options: IPaginationOptions = {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 10,
+    sortBy: req.query.sortBy?.toString(),
+    sortOrder: req.query.sortOrder?.toString() as 'asc' | 'desc'
+  };
+
+  const result = await ReservationService.getUpcomingJobs(options);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Upcoming jobs retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+const getEmployeeJobs = catchAsync(async (req: Request, res: Response) => {
+  const { employeeId } = req.params;
+  
+  const options: IPaginationOptions = {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 10,
+    sortBy: req.query.sortBy?.toString(),
+    sortOrder: req.query.sortOrder?.toString() as 'asc' | 'desc'
+  };
+
+  const result = await ReservationService.getEmployeeJobs(employeeId, options);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Employee jobs retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+const getTransactionHistory = catchAsync(async (req: Request, res: Response) => {
+  const options: IPaginationOptions = {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 10,
+    sortBy: req.query.sortBy?.toString(),
+    sortOrder: req.query.sortOrder?.toString() as 'asc' | 'desc'
+  };
+
+  const result = await ReservationService.getTransactionHistory(options);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Transaction history retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+const getAllCashbacks = catchAsync(async (req: Request, res: Response) => {
+  const options: IPaginationOptions = {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 10,
+    sortBy: req.query.sortBy?.toString(),
+    sortOrder: req.query.sortOrder?.toString() as 'asc' | 'desc'
+  };
+  
+  // Get status filter if provided
+  const status = req.query.status?.toString();
+
+  const result = await ReservationService.getAllCashbacks(options, status);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Cashbacks retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+export const scheduleReservation = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { scheduledDate } = req.body;
+
+  // Validate that scheduledDate is provided
+  if (!scheduledDate) {
+    throw new AppError(400, 'Scheduled date is required');
+  }
+
+  const result = await ReservationService.scheduleReservation(id, scheduledDate);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Reservation scheduled successfully',
+    data: result,
+  });
+});
+
 export const ReservationController = {
   createReservation,
   getAllReservations,
@@ -210,4 +353,11 @@ export const ReservationController = {
   addReservationAddOn,
   removeReservationAddOn,
   createReservationWithPayment,
+  getUnassignedReservations,
+  getOngoingJobs,
+  getUpcomingJobs,
+  getEmployeeJobs,
+  getTransactionHistory,
+  getAllCashbacks,
+  scheduleReservation,
 };

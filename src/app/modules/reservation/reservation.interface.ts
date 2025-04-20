@@ -121,3 +121,7 @@ export interface ICashbackResponse {
     createdAt: Date;
   };
 }
+
+export interface IScheduleReservation {
+  scheduledDate: Date | string;
+}
