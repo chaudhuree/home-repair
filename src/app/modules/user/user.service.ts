@@ -52,6 +52,8 @@ const registerUserIntoDB = async (payload: any) => {
       create: {
         firstName: payload.firstName,
         lastName: payload.lastName,
+        contactNo: payload.contactNo || null,
+        profileImg: payload.profileImg || "https://nyc3.digitaloceanspaces.com/smtech-space/files/219b517a-5d6c-4846-a33e-b94aedb2dfd2.png",
         bio: payload.bio || null
       }
     }

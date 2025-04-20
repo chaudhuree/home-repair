@@ -1,7 +1,7 @@
 import * as bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import httpStatus from 'http-status';
-import { User, UserRole } from '@prisma/client';
+import { User,Profile, UserRole } from '@prisma/client';
 import config from '../../../config';
 import AppError from '../../errors/AppError';
 import { generateToken } from '../../utils/generateToken';
@@ -18,6 +18,7 @@ interface ILoginUserResponse {
   name: string;
   email: string;
   role: UserRole;
+  profile: Profile;
   accessToken: string;
 }
 
@@ -26,7 +27,8 @@ interface ITokenUser {
   name: string;
   email: string;
   role: UserRole;
-}
+  profile: Profile;
+  }
 
 const generateOTP = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -54,7 +56,8 @@ const loginUser = async (payload: ILoginUser): Promise<ILoginUserResponse> => {
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role
+    role: user.role,
+    profile: user.profile as Profile
   };
 
   const accessToken = await generateToken(
@@ -68,6 +71,7 @@ const loginUser = async (payload: ILoginUser): Promise<ILoginUserResponse> => {
     name: user.name,
     email: user.email,
     role: user.role,
+    profile: user.profile as Profile,
     accessToken
   };
 };
