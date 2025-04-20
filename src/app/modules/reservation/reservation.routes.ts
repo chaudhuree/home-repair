@@ -81,7 +81,7 @@ router.patch(
 // Assign employee route (manager only)
 router.patch(
   '/:id/assign-employee',
-  auth(ENUM_USER_ROLE.MANAGER),
+  auth(ENUM_USER_ROLE.MANAGER), auth(ENUM_USER_ROLE.SUPER_ADMIN),
   validateRequest(ReservationValidation.assignEmployee),
   ReservationController.assignEmployee
 );
