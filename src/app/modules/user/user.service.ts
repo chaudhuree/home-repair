@@ -315,6 +315,9 @@ const getAllEmployees = async (
     where: {
       role: 'employee'
     },
+    include: {
+      profile: true
+    },
     skip,
     take: limit,
     orderBy: {
