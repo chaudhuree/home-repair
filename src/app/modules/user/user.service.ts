@@ -6,6 +6,8 @@ import httpStatus from 'http-status';
 import { IPaginationOptions, IGenericResponse } from '../../interface/pagination';
 import { UserRole } from '@prisma/client';
 import { PaymentService } from '../payment/payment.service';
+import { generateToken } from '../../utils/generateToken';
+import config from '../../../config';
 
 interface UserWithOptionalPassword extends Omit<User, 'password'> {
   password?: string;
@@ -66,10 +68,30 @@ const registerUserIntoDB = async (payload: any) => {
     }
   });
 
+  // Generate token for the newly registered user
+  const tokenData = {
+    id: result.id,
+    name: result.name,
+    email: result.email,
+    role: result.role,
+    profile: result.profile
+  };
+
+  const accessToken = await generateToken(
+    tokenData,
+    config.jwt.access_secret as string,
+    config.jwt.access_expires_in as string
+  );
+
+  // Create response object without password
   const userWithOptionalPassword = result as UserWithOptionalPassword;
   delete userWithOptionalPassword.password;
 
-  return userWithOptionalPassword;
+  // Return user data with access token
+  return {
+    ...userWithOptionalPassword,
+    accessToken
+  };
 };
 
 const getAllUsersFromDB = async (
