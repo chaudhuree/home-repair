@@ -5,6 +5,7 @@ const router = Router();
 
 router.post('/', spaceTypeController.createSpaceType);
 router.get('/', spaceTypeController.getAllSpaceTypes);
+router.get('/service/:serviceId', spaceTypeController.getSpaceTypesByServiceId);
 router.patch('/:id', spaceTypeController.updateSpaceType);
 router.delete('/:id', spaceTypeController.deleteSpaceType);
 

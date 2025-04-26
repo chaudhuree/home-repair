@@ -85,15 +85,21 @@ model Service {
 
   // Relations
   reservations Reservation[]
+  spaceTypes   SpaceType[]
+  addOns       AddOn[]
 }
 
 model SpaceType {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  serviceId   String   @db.ObjectId
   name        String
   description String
   price       Float
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  // Relations
+  service      Service    @relation(fields: [serviceId], references: [id])
   reservations Reservation[] @relation("SpaceTypeReservations")
 }
 
@@ -109,12 +115,16 @@ model PackageType {
 
 model AddOn {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  serviceId   String   @db.ObjectId
   name        String
   description String
   price       Float
   quantity    Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  // Relations
+  service      Service    @relation(fields: [serviceId], references: [id])
   reservationAddOns ReservationAddOn[]
 }
 
@@ -133,7 +143,7 @@ model Reservation {
   refundId                String?
   refundStatus            RefundStatus?
   providePaint            Boolean       @default(false)
-  paintPrice              Float?
+  paintPrice              Float?        @default(0)
   status                  ServiceStatus @default(pending)
   customersGivenImages    String[]
   beforeImages            String[]

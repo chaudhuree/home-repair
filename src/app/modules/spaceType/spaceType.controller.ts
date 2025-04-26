@@ -13,7 +13,8 @@ export async function createSpaceType(req: Request, res: Response) {
 }
 
 export async function getAllSpaceTypes(req: Request, res: Response) {
-  const result = await spaceTypeService.getAllSpaceTypes(req.query);
+  const { serviceId, ...paginationOptions } = req.query;
+  const result = await spaceTypeService.getAllSpaceTypes(paginationOptions, serviceId as string);
   return sendResponse(res, {
     success: true,
     statusCode: 200,
@@ -40,5 +41,17 @@ export async function deleteSpaceType(req: Request, res: Response) {
     statusCode: 200,
     message: 'Space type deleted successfully',
     data: result,
+  });
+}
+
+export async function getSpaceTypesByServiceId(req: Request, res: Response) {
+  const serviceId = req.params.serviceId;
+  const result = await spaceTypeService.getSpaceTypesByServiceId(serviceId, req.query);
+  return sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: 'Space types for service retrieved successfully',
+    meta: result.meta,
+    data: result.data,
   });
 }

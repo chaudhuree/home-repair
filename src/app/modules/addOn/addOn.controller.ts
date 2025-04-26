@@ -13,7 +13,8 @@ export async function createAddOn(req: Request, res: Response) {
 }
 
 export async function getAllAddOns(req: Request, res: Response) {
-  const result = await addOnService.getAllAddOns(req.query);
+  const { serviceId, ...paginationOptions } = req.query;
+  const result = await addOnService.getAllAddOns(paginationOptions, serviceId as string);
   return sendResponse(res, {
     success: true,
     statusCode: 200,
@@ -40,6 +41,18 @@ export async function deleteAddOn(req: Request, res: Response) {
     statusCode: 200,
     message: 'AddOn deleted successfully',
     data: result,
+  });
+}
+
+export async function getAddOnsByServiceId(req: Request, res: Response) {
+  const serviceId = req.params.serviceId;
+  const result = await addOnService.getAddOnsByServiceId(serviceId, req.query);
+  return sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: 'AddOns for service retrieved successfully',
+    meta: result.meta,
+    data: result.data,
   });
 }
 
