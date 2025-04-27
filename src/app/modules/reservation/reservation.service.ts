@@ -1517,6 +1517,195 @@ const scheduleReservation = async (id: string, scheduledDate: Date | string): Pr
   return updatedReservation;
 };
 
+const getEmployeeActiveJobs = async (
+  employeeId: string,
+  options: IPaginationOptions
+): Promise<IGenericResponse<Reservation[]>> => {
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+
+  // Find reservations where the employee is assigned and status is in_progress
+  const result = await prisma.reservation.findMany({
+    where: {
+      employeeId,
+      status: ServiceStatus.in_progress
+    },
+    skip,
+    take: limit,
+    orderBy: sortBy && sortOrder ? {
+      [sortBy]: sortOrder,
+    } : {
+      createdAt: 'desc',
+    },
+    include: {
+      service: true,
+      spaceType: true,
+      packageType: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          profile: true,
+        },
+      },
+      reservationAddOns: {
+        include: {
+          addOn: true,
+        },
+      },
+    },
+  });
+
+  const total = await prisma.reservation.count({
+    where: {
+      employeeId,
+      status: ServiceStatus.in_progress
+    },
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: 'Employee active jobs retrieved successfully',
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: result,
+  };
+};
+
+const getEmployeeUpcomingJobs = async (
+  employeeId: string,
+  options: IPaginationOptions
+): Promise<IGenericResponse<Reservation[]>> => {
+  const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+  const today = new Date();
+
+  // Find reservations where the employee is assigned, status is assigned_employee, and scheduledDate is in the future
+  const result = await prisma.reservation.findMany({
+    where: {
+      employeeId,
+      status: ServiceStatus.assigned_employee,
+      scheduledDate: {
+        gt: today
+      }
+    },
+    skip,
+    take: limit,
+    orderBy: sortBy && sortOrder ? {
+      [sortBy]: sortOrder,
+    } : {
+      scheduledDate: 'asc', // Default sort by scheduled date ascending
+    },
+    include: {
+      service: true,
+      spaceType: true,
+      packageType: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          profile: true,
+        },
+      },
+      reservationAddOns: {
+        include: {
+          addOn: true,
+        },
+      },
+    },
+  });
+
+  const total = await prisma.reservation.count({
+    where: {
+      employeeId,
+      status: ServiceStatus.assigned_employee,
+      scheduledDate: {
+        gt: today
+      }
+    },
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: 'Employee upcoming jobs retrieved successfully',
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: result,
+  };
+};
+
+const getEmployeeDashboardStats = async (
+  employeeId: string
+): Promise<IGenericResponse<any>> => {
+  // Get total completed jobs by the employee
+  const totalCompletedJobs = await prisma.reservation.count({
+    where: {
+      employeeId,
+      status: ServiceStatus.completed
+    },
+  });
+
+  // Get all completed reservations by the employee
+  const completedReservations = await prisma.reservation.findMany({
+    where: {
+      employeeId,
+      status: ServiceStatus.completed
+    },
+    select: {
+      amount: true
+    }
+  });
+
+  // Calculate average reservation value
+  let averageReservationValue = 0;
+  if (completedReservations.length > 0) {
+    const totalValue = completedReservations.reduce((sum, reservation) => sum + reservation.amount, 0);
+    averageReservationValue = totalValue / completedReservations.length;
+  }
+
+  // Get total active jobs (in_progress)
+  const totalActiveJobs = await prisma.reservation.count({
+    where: {
+      employeeId,
+      status: ServiceStatus.in_progress
+    },
+  });
+
+  // Get total upcoming jobs (assigned_employee and scheduledDate > today)
+  const today = new Date();
+  const totalUpcomingJobs = await prisma.reservation.count({
+    where: {
+      employeeId,
+      status: ServiceStatus.assigned_employee,
+      scheduledDate: {
+        gt: today
+      }
+    },
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: 'Employee dashboard statistics retrieved successfully',
+    data: {
+      totalCompletedJobs,
+      averageReservationValue,
+      totalActiveJobs,
+      totalUpcomingJobs
+    },
+  };
+};
+
 export const ReservationService = {
   createReservation,
   getAllReservations,
@@ -1538,4 +1727,7 @@ export const ReservationService = {
   getTransactionHistory,
   getAllCashbacks,
   scheduleReservation,
+  getEmployeeActiveJobs,
+  getEmployeeUpcomingJobs,
+  getEmployeeDashboardStats,
 };

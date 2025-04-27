@@ -339,6 +339,61 @@ export const scheduleReservation = catchAsync(async (req: Request, res: Response
   });
 });
 
+const getEmployeeActiveJobs = catchAsync(async (req: Request, res: Response) => {
+  const employeeId = req.params.employeeId || req.user.id;
+  
+  const options: IPaginationOptions = {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 10,
+    sortBy: req.query.sortBy?.toString(),
+    sortOrder: req.query.sortOrder?.toString() as 'asc' | 'desc'
+  };
+
+  const result = await ReservationService.getEmployeeActiveJobs(employeeId, options);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Employee active jobs retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+const getEmployeeUpcomingJobs = catchAsync(async (req: Request, res: Response) => {
+  const employeeId = req.params.employeeId || req.user.id;
+  
+  const options: IPaginationOptions = {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 10,
+    sortBy: req.query.sortBy?.toString(),
+    sortOrder: req.query.sortOrder?.toString() as 'asc' | 'desc'
+  };
+
+  const result = await ReservationService.getEmployeeUpcomingJobs(employeeId, options);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Employee upcoming jobs retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+const getEmployeeDashboardStats = catchAsync(async (req: Request, res: Response) => {
+  const employeeId = req.params.employeeId || req.user.id;
+  
+  const result = await ReservationService.getEmployeeDashboardStats(employeeId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Employee dashboard statistics retrieved successfully',
+    data: result.data,
+  });
+});
+
 export const ReservationController = {
   createReservation,
   getAllReservations,
@@ -360,4 +415,7 @@ export const ReservationController = {
   getTransactionHistory,
   getAllCashbacks,
   scheduleReservation,
+  getEmployeeActiveJobs,
+  getEmployeeUpcomingJobs,
+  getEmployeeDashboardStats,
 };

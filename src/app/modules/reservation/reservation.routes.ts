@@ -81,7 +81,7 @@ router.patch(
 // Assign employee route (manager only)
 router.patch(
   '/:id/assign-employee',
-  auth(ENUM_USER_ROLE.MANAGER), auth(ENUM_USER_ROLE.SUPER_ADMIN),
+  auth(ENUM_USER_ROLE.MANAGER),
   validateRequest(ReservationValidation.assignEmployee),
   ReservationController.assignEmployee
 );
@@ -150,6 +150,48 @@ router.get(
   '/admin/cashbacks',
   auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
   ReservationController.getAllCashbacks
+);
+
+// Get active jobs for an employee (status = in_progress)
+router.get(
+  '/employee/active-jobs',
+  auth(ENUM_USER_ROLE.EMPLOYEE),
+  ReservationController.getEmployeeActiveJobs
+);
+
+// Get active jobs for a specific employee (for managers/admins)
+router.get(
+  '/admin/employee/:employeeId/active-jobs',
+  auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+  ReservationController.getEmployeeActiveJobs
+);
+
+// Get upcoming jobs for an employee (status = assigned_employee and scheduledDate > today)
+router.get(
+  '/employee/upcoming-jobs',
+  auth(ENUM_USER_ROLE.EMPLOYEE),
+  ReservationController.getEmployeeUpcomingJobs
+);
+
+// Get upcoming jobs for a specific employee (for managers/admins)
+router.get(
+  '/admin/employee/:employeeId/upcoming-jobs',
+  auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+  ReservationController.getEmployeeUpcomingJobs
+);
+
+// Get dashboard statistics for an employee
+router.get(
+  '/employee/dashboard-stats',
+  auth(ENUM_USER_ROLE.EMPLOYEE),
+  ReservationController.getEmployeeDashboardStats
+);
+
+// Get dashboard statistics for a specific employee (for managers/admins)
+router.get(
+  '/admin/employee/:employeeId/dashboard-stats',
+  auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+  ReservationController.getEmployeeDashboardStats
 );
 
 // Schedule a reservation date
