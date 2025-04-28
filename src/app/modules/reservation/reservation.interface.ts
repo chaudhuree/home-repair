@@ -22,6 +22,7 @@ export type IReservation = {
   stripeCustomerId?: string;
   providePaint: boolean;
   paintPrice?: number;
+  paintName?: string;
   status: ServiceStatus;
   customersGivenImages: string[];
   beforeImages: string[];
