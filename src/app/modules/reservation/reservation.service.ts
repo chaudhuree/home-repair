@@ -573,6 +573,7 @@ const processFirstInstallment = async (
     where: { id },
     include: {
       user: true,
+      service: true,
     },
   });
 
@@ -613,6 +614,31 @@ const processFirstInstallment = async (
     },
   });
 
+  // Create transaction record for first installment payment
+  // Prepare transaction data with proper type handling
+  const transactionData: Prisma.TransactionCreateInput = {
+    transactionId: `TRX-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+    amount: reservation.firstInstallmentAmount,
+    paymentMethod: 'stripe' as any, // Cast to any to avoid type issues
+    paymentType: 'first_installment' as any, // Cast to any to avoid type issues
+    status: 'successful',
+    description: `First installment payment for ${reservation.service.name} service`,
+    // Use connect for relations to ensure proper type handling
+    reservation: {
+      connect: { id: reservation.id }
+    },
+    service: {
+      connect: { id: reservation.serviceId }
+    },
+    customer: {
+      connect: { id: reservation.userId }
+    }
+  };
+  
+  await prisma.transaction.create({
+    data: transactionData
+  });
+
   return updatedReservation;
 };
 // final payment of the reservation here id is the reservation id
@@ -624,6 +650,8 @@ const processSecondInstallment = async (
     where: { id },
     include: {
       user: true,
+      service: true,
+      employee: true,
     },
   });
 
@@ -658,6 +686,22 @@ const processSecondInstallment = async (
       service: true,
       user: true,
       employee: true,
+    },
+  });
+
+  // Create transaction record for second installment payment
+  await prisma.transaction.create({
+    data: {
+      transactionId: `TRX-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      reservationId: reservation.id,
+      serviceId: reservation.serviceId,
+      customerId: reservation.userId,
+      employeeId: reservation.employeeId,
+      amount: reservation.secondInstallmentAmount,
+      paymentMethod: 'stripe',
+      paymentType: 'second_installment',
+      status: 'successful',
+      description: `Second installment payment for ${reservation.service.name} service`,
     },
   });
 

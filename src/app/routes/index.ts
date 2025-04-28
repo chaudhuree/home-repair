@@ -15,6 +15,7 @@ import { SupplyRoutes } from '../modules/supply/supply.routes';
 // uploadImage is the function
 import { uploadFile } from '../utils/uploadFile';
 import { upload } from '../middlewares/upload';
+import { TransactionRoutes } from '../modules/transaction/transaction.routes';
 
 const router: Router = express.Router();
 
@@ -67,6 +68,10 @@ const moduleRoutes: ModuleRoute[] = [
   {
     path: '/supplies',
     route: SupplyRoutes,
+  },
+  {
+    path: '/transactions',
+    route: TransactionRoutes,
   },
 ];
 

@@ -72,6 +72,8 @@ model User {
   messages          Message[]
   cashbacks         Cashback[]
   supplyAssignments SupplyAssignment[]
+  customerTransactions Transaction[] @relation("transactionCustomer")
+  employeeTransactions Transaction[] @relation("transactionEmployee")
 }
 
 model Service {
@@ -87,6 +89,7 @@ model Service {
   reservations Reservation[]
   spaceTypes   SpaceType[]
   addOns       AddOn[]
+  transactions Transaction[]
 }
 
 model SpaceType {
@@ -175,6 +178,7 @@ model Reservation {
   order        Order?
   chatRoom     ChatRoom?
   cashbacks    Cashback[]
+  transactions Transaction[]
 }
 
 
@@ -297,4 +301,47 @@ model SupplyAssignment {
   // Relations
   supply Supply @relation(fields: [supplyId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
+}
+
+enum PaymentType {
+  first_installment
+  second_installment
+  expense
+  refunded
+  cashback
+}
+
+enum PaymentMethod {
+  credit_card
+  debit_card
+  cash
+  bank_transfer
+  stripe
+  paypal
+  other
+}
+
+model Transaction {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  transactionId String        @unique
+  date          DateTime      @default(now())
+  reservationId String?       @db.ObjectId
+  serviceId     String?       @db.ObjectId
+  employeeId    String?       @db.ObjectId
+  customerId    String        @db.ObjectId
+  amount        Float
+  paymentMethod PaymentMethod
+  paymentType   PaymentType
+  status        String?       // For tracking transaction status (e.g., successful, failed, pending)
+  addOnsList    String[]      @db.ObjectId // Array of AddOn IDs
+  description   String?       // Detailed description of the transaction
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  reservation   Reservation?  @relation(fields: [reservationId], references: [id])
+  service       Service?      @relation(fields: [serviceId], references: [id])
+  employee      User?         @relation("transactionEmployee", fields: [employeeId], references: [id])
+  customer      User          @relation("transactionCustomer", fields: [customerId], references: [id])
 }
