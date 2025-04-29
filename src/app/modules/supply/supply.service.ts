@@ -3,6 +3,7 @@ import { IPaginationOptions } from '../../interface/pagination';
 import calculatePagination from '../../utils/calculatePagination';
 import prisma from '../../utils/prisma';
 import retry from '../../utils/retry';
+import { createSupplyTransaction } from '../supplyTransaction/supplyTransaction.service';
 
 // Type definitions for the new models
 type Supply = {
@@ -146,6 +147,17 @@ export async function assignSupply(payload: ISupplyAssignment) {
       },
     }) as SupplyAssignment;
 
+    // Record the supply transaction
+    const assignDate = payload.assignDate || new Date();
+    await createSupplyTransaction({
+      supplyId: payload.supplyId,
+      employeeId: payload.userId,
+      quantity: payload.quantity,
+      type: 'assigned',
+      date: assignDate,
+      notes: `Assigned ${payload.quantity} ${supply.measureUnit} of ${supply.name} to employee`
+    });
+
     return {
       assignment,
       supply: updatedSupply,
@@ -164,23 +176,29 @@ export async function returnSupply(payload: ISupplyReturn) {
         userId: payload.userId,
         isReturned: false,
       },
+      orderBy: {
+        assignDate: 'asc',
+      },
     }) as SupplyAssignment[];
 
     if (!assignments.length) {
-      throw new Error('No active supply assignment found for this user and supply');
+      throw new Error('No active assignments found for this supply and user');
     }
 
     // Calculate total assigned quantity
-    const totalAssignedQuantity = assignments.reduce((sum: number, assignment: any) => sum + assignment.quantity, 0);
+    const totalAssignedQuantity = assignments.reduce(
+      (sum, assignment) => sum + assignment.quantity, 
+      0
+    );
 
     if (totalAssignedQuantity < payload.quantity) {
-      throw new Error(`Cannot return more than assigned quantity. Maximum returnable: ${totalAssignedQuantity}`);
+      throw new Error(`Cannot return more than assigned quantity. Assigned: ${totalAssignedQuantity}, Attempting to return: ${payload.quantity}`);
     }
 
     // Get the current supply
-    const supply = await tx.supply.findUnique({
+    const supply = await (tx as any).supply.findUnique({
       where: { id: payload.supplyId },
-    });
+    }) as Supply | null;
 
     if (!supply) {
       throw new Error('Supply not found');
@@ -191,13 +209,14 @@ export async function returnSupply(payload: ISupplyReturn) {
       where: { id: payload.supplyId },
       data: {
         quantity: supply.quantity + payload.quantity,
-        status: true, // If we're adding quantity, it's definitely available
+        status: true, // If we're returning items, it's definitely available
       },
     }) as Supply;
 
-    // Update assignments
+    // Process the return by updating assignments
     let remainingToReturn = payload.quantity;
     const updatedAssignments = [];
+    const returnDate = payload.returnDate || new Date();
 
     for (const assignment of assignments) {
       if (remainingToReturn <= 0) break;
@@ -205,43 +224,56 @@ export async function returnSupply(payload: ISupplyReturn) {
       const returnQuantity = Math.min(assignment.quantity, remainingToReturn);
       remainingToReturn -= returnQuantity;
 
-      // If returning the full amount
       if (returnQuantity === assignment.quantity) {
-        const updated = await (tx as any).supplyAssignment.update({
+        // If returning the entire assignment
+        const updatedAssignment = await (tx as any).supplyAssignment.update({
           where: { id: assignment.id },
           data: {
             isReturned: true,
-            returnDate: payload.returnDate || new Date(),
+            returnDate,
           },
-        }) as SupplyAssignment;
-        updatedAssignments.push(updated);
+        });
+        updatedAssignments.push(updatedAssignment);
       } else {
-        // If returning partial amount, update the current assignment and create a new one for the returned portion
-        const updated = await (tx as any).supplyAssignment.update({
+        // If returning part of the assignment
+        // Update the current assignment with reduced quantity
+        const updatedAssignment = await (tx as any).supplyAssignment.update({
           where: { id: assignment.id },
           data: {
             quantity: assignment.quantity - returnQuantity,
           },
-        }) as SupplyAssignment;
-        
-        const returned = await (tx as any).supplyAssignment.create({
+        });
+        updatedAssignments.push(updatedAssignment);
+
+        // Create a new assignment for the returned portion
+        const returnedAssignment = await (tx as any).supplyAssignment.create({
           data: {
             supplyId: payload.supplyId,
             userId: payload.userId,
             quantity: returnQuantity,
             isReturned: true,
             assignDate: assignment.assignDate,
-            returnDate: payload.returnDate || new Date(),
+            returnDate,
           },
-        }) as SupplyAssignment;
-        
-        updatedAssignments.push(updated, returned);
+        });
+        updatedAssignments.push(returnedAssignment);
       }
     }
+
+    // Record the supply transaction
+    await createSupplyTransaction({
+      supplyId: payload.supplyId,
+      employeeId: payload.userId,
+      quantity: payload.quantity,
+      type: 'returned',
+      date: returnDate,
+      notes: `Returned ${payload.quantity} ${supply.measureUnit} of ${supply.name} from employee`
+    });
 
     return {
       updatedAssignments,
       supply: updatedSupply,
+      returnedQuantity: payload.quantity,
     };
   }));
 }

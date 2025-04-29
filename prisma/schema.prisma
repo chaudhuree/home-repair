@@ -72,6 +72,7 @@ model User {
   messages          Message[]
   cashbacks         Cashback[]
   supplyAssignments SupplyAssignment[]
+  supplyTransactions SupplyTransaction[]
   customerTransactions Transaction[] @relation("transactionCustomer")
   employeeTransactions Transaction[] @relation("transactionEmployee")
 }
@@ -285,6 +286,7 @@ model Supply {
 
   // Relations
   supplyAssignments SupplyAssignment[]
+  supplyTransactions SupplyTransaction[]
 }
 
 model SupplyAssignment {
@@ -301,6 +303,27 @@ model SupplyAssignment {
   // Relations
   supply Supply @relation(fields: [supplyId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
+}
+
+enum SupplyTransactionType {
+  assigned
+  returned
+}
+
+model SupplyTransaction {
+  id               String               @id @default(auto()) @map("_id") @db.ObjectId
+  supplyId         String               @db.ObjectId
+  employeeId       String               @db.ObjectId
+  quantity         Int
+  type             SupplyTransactionType
+  date             DateTime             @default(now())
+  notes            String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  // Relations
+  supply           Supply               @relation(fields: [supplyId], references: [id])
+  employee         User                 @relation(fields: [employeeId], references: [id])
 }
 
 enum PaymentType {

@@ -10,6 +10,7 @@ import { AddOnRoutes } from '../modules/addOn/addOn.routes';
 import { PackageTypeRoutes } from '../modules/packageType/packageType.routes';
 import { SpaceTypeRoutes } from '../modules/spaceType/spaceType.routes';
 import { SupplyRoutes } from '../modules/supply/supply.routes';
+import { SupplyTransactionRoutes } from '../modules/supplyTransaction/supplyTransaction.routes';
 
 // need to import below two to upload image -> upload is the middleware
 // uploadImage is the function
@@ -68,6 +69,10 @@ const moduleRoutes: ModuleRoute[] = [
   {
     path: '/supplies',
     route: SupplyRoutes,
+  },
+  {
+    path: '/supply-transactions',
+    route: SupplyTransactionRoutes,
   },
   {
     path: '/transactions',
