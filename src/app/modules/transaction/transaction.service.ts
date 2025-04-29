@@ -671,6 +671,7 @@ const getTransactionStatistics = async (
   totalExpense: number;
   totalPayments: number;
   transactionCounts: Record<string, number>;
+  totalEmployees: number;
 }> => {
   // Prepare date filter if provided
   const whereConditions: Prisma.TransactionWhereInput = {};
@@ -718,11 +719,19 @@ const getTransactionStatistics = async (
     }
   });
 
+  // Get count of users with employee role
+  const totalEmployees = await prisma.user.count({
+    where: {
+      role: UserRole.employee
+    }
+  });
+
   return {
     totalRevenue,
     totalExpense,
     totalPayments,
     transactionCounts,
+    totalEmployees,
   };
 };
 
