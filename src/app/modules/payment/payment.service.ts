@@ -4,6 +4,8 @@ import stripe from '../../utils/stripe';
 import { IPaymentInfo } from '../../interface/payment.interface';
 import AppError from '../../errors/AppError';
 import Stripe from 'stripe';
+import { TransactionService } from '../transaction/transaction.service';
+import { PaymentMethod } from '../transaction/transaction.interface';
 
 const createStripeCustomer = async (email: string, name: string) => {
   const customer = await stripe.customers.create({
@@ -107,14 +109,25 @@ const processRemainingPayment = async (
       payment_method_types: ['card'], // Only allow card payments
     });
 
-    await prisma.reservation.update({
+    // Update reservation with payment information
+    const updatedReservation = await prisma.reservation.update({
       where: { id: reservationId },
       data: {
         finalPaymentIntentId: paymentIntent.id,
         paymentStatus: PaymentStatus.total_paid,
         status: ServiceStatus.completed,
       },
+      include: {
+        service: true
+      }
     });
+    
+    // Create transaction record for second installment payment
+    await TransactionService.createSecondInstallmentTransaction(
+      reservationId,
+      'stripe',
+      paymentIntent.id // Pass the payment intent ID
+    );
 
     return paymentIntent;
   } catch (error) {
@@ -128,6 +141,7 @@ const processRemainingPayment = async (
 const processCashbackRefund = async (
   reservationId: string,
   amount: number,
+  cashbackId: string,
 ) => {
   const reservation = await prisma.reservation.findUnique({
     where: { id: reservationId },
@@ -143,13 +157,38 @@ const processCashbackRefund = async (
       amount: Math.round(amount * 100), // Convert to cents
     });
 
-    await prisma.reservation.update({
+    // Update the reservation with refund information
+    const updatedReservation = await prisma.reservation.update({
       where: { id: reservationId },
       data: {
         refundId: refund.id,
         refundStatus: RefundStatus.succeeded,
       },
+      include: {
+        user: true
+      }
     });
+    
+    // Create a transaction record for the refund with Stripe refund ID
+    await TransactionService.createRefundTransaction(
+      reservationId,
+      amount,
+      refund.id,
+      PaymentMethod.stripe,
+      refund.id // Pass the Stripe refund ID
+    );
+    
+    // If this is a cashback refund, create a cashback transaction as well
+    if (cashbackId) {
+      await TransactionService.createCashbackTransaction(
+        cashbackId,
+        updatedReservation.userId,
+        reservationId,
+        amount,
+        PaymentMethod.stripe,
+        refund.id // Pass the Stripe refund ID for reference
+      );
+    }
 
     return refund;
   } catch (error) {

@@ -17,6 +17,8 @@ import calculatePagination from '../../utils/calculatePagination';
 import { reservationSearchableFields } from './reservation.constant';
 import AppError from '../../errors/AppError';
 import { PaymentService } from '../payment/payment.service';
+import { TransactionService } from '../transaction/transaction.service';
+import { PaymentMethod } from '../transaction/transaction.interface';
 
 const createReservation = async (
   userId: string,
@@ -614,30 +616,12 @@ const processFirstInstallment = async (
     },
   });
 
-  // Create transaction record for first installment payment
-  // Prepare transaction data with proper type handling
-  const transactionData: Prisma.TransactionCreateInput = {
-    transactionId: `TRX-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-    amount: reservation.firstInstallmentAmount,
-    paymentMethod: 'stripe' as any, // Cast to any to avoid type issues
-    paymentType: 'first_installment' as any, // Cast to any to avoid type issues
-    status: 'successful',
-    description: `First installment payment for ${reservation.service.name} service`,
-    // Use connect for relations to ensure proper type handling
-    reservation: {
-      connect: { id: reservation.id }
-    },
-    service: {
-      connect: { id: reservation.serviceId }
-    },
-    customer: {
-      connect: { id: reservation.userId }
-    }
-  };
-  
-  await prisma.transaction.create({
-    data: transactionData
-  });
+  // Create transaction record for first installment payment using the TransactionService
+  await TransactionService.createFirstInstallmentTransaction(
+    reservation.id,
+    PaymentMethod.stripe,
+    reservation.depositPaymentIntentId || undefined // Pass the payment intent ID, handle null case
+  );
 
   return updatedReservation;
 };
@@ -758,6 +742,9 @@ const approveCashback = async (
 ): Promise<Reservation> => {
   const cashback = await prisma.cashback.findUnique({
     where: { id: cashbackId },
+    include: {
+      user: true
+    }
   });
 
   if (!cashback) {
@@ -766,6 +753,9 @@ const approveCashback = async (
 
   const reservation = await prisma.reservation.findUnique({
     where: { id },
+    include: {
+      service: true
+    }
   });
 
   if (!reservation) {
@@ -773,7 +763,7 @@ const approveCashback = async (
   }
 
   // Process the cashback refund
-  await PaymentService.processCashbackRefund(id, cashback.amount);
+  await PaymentService.processCashbackRefund(id, cashback.amount, cashbackId);
 
   // Update cashback status
   await prisma.cashback.update({
@@ -781,6 +771,28 @@ const approveCashback = async (
     data: {
       status: 'approved',
     },
+  });
+
+  // Create a transaction record for the cashback
+  await prisma.transaction.create({
+    data: {
+      transactionId: `TRX-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      amount: cashback.amount,
+      paymentMethod: 'stripe',
+      paymentType: 'cashback',
+      status: 'successful',
+      description: `Cashback payment for reservation ${id}`,
+      notes: `Cashback ID: ${cashbackId}`,
+      reservation: {
+        connect: { id }
+      },
+      service: {
+        connect: { id: reservation.serviceId }
+      },
+      customer: {
+        connect: { id: cashback.userId }
+      }
+    }
   });
 
   return reservation;

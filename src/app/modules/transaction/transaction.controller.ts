@@ -35,7 +35,7 @@ const createExpenseTransaction = catchAsync(async (req: Request, res: Response) 
 const getAllTransactions = catchAsync(async (req: Request, res: Response) => {
   const filters = pick(req.query, transactionFilterableFields);
   const paginationOptions = pick(req.query, paginationFields);
-  const userId = req.user?.userId;
+  const userId = req.user?.id;
   const userRole = req.user?.role as string;
 
   const result = await TransactionService.getAllTransactions(
@@ -56,9 +56,8 @@ const getAllTransactions = catchAsync(async (req: Request, res: Response) => {
 
 // Get employee completed transactions
 const getEmployeeCompletedTransactions = catchAsync(async (req: Request, res: Response) => {
-  const employeeId = req.user?.userId as string;
+  const employeeId = req.user?.id as string;
   const paginationOptions = pick(req.query, paginationFields);
-
   const result = await TransactionService.getEmployeeCompletedTransactions(
     paginationOptions,
     employeeId
@@ -86,10 +85,75 @@ const getSingleTransaction = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// Get transaction statistics
+const getTransactionStatistics = catchAsync(async (req: Request, res: Response) => {
+  const { startDate, endDate } = req.query;
+  const userRole = req.user?.role;
+  const userId = req.user?.id;
+  
+  const result = await TransactionService.getTransactionStatistics(
+    startDate as string,
+    endDate as string,
+    userRole as string,
+    userId as string
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Transaction statistics retrieved successfully',
+    data: result,
+  });
+});
+
+// Get add-ons statistics
+const getAddOnsStatistics = catchAsync(async (req: Request, res: Response) => {
+  const { startDate, endDate } = req.query;
+  const userRole = req.user?.role;
+  const userId = req.user?.id;
+  
+  const result = await TransactionService.getAddOnsStatistics(
+    startDate as string,
+    endDate as string,
+    userRole as string,
+    userId as string
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Add-ons statistics retrieved successfully',
+    data: result,
+  });
+});
+
+// Get revenue data for graphs
+const getRevenueGraphData = catchAsync(async (req: Request, res: Response) => {
+  const { year } = req.query;
+  const userRole = req.user?.role;
+  const userId = req.user?.id;
+  
+  const result = await TransactionService.getRevenueGraphData(
+    year as string,
+    userRole as string,
+    userId as string
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Revenue graph data retrieved successfully',
+    data: result,
+  });
+});
+
 export const TransactionController = {
   createTransaction,
   createExpenseTransaction,
   getAllTransactions,
-  getEmployeeCompletedTransactions,
   getSingleTransaction,
+  getEmployeeCompletedTransactions,
+  getTransactionStatistics,
+  getAddOnsStatistics,
+  getRevenueGraphData,
 };

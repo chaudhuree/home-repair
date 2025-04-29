@@ -10,6 +10,9 @@ export type IMeta = {
   limit: number;
   total: number;
   totalPage: number;
+  totalPayments?: number;
+  totalExpense?: number;
+  totalRevenue?: number;
 };
 
 export type IGenericResponse<T> = {

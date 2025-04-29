@@ -39,7 +39,34 @@ router.get(
   TransactionController.getEmployeeCompletedTransactions
 );
 
-// Get a single transaction by ID
+// Get transaction statistics (admin and manager only)
+router.get(
+  '/statistics',
+  auth(ENUM_USER_ROLE.SUPER_ADMIN, ENUM_USER_ROLE.MANAGER),
+  TransactionController.getTransactionStatistics
+);
+
+// Get add-ons statistics (admin and manager only)
+router.get(
+  '/add-ons-statistics',
+  auth(ENUM_USER_ROLE.SUPER_ADMIN, ENUM_USER_ROLE.MANAGER),
+  TransactionController.getAddOnsStatistics
+);
+
+// Get revenue graph data (accessible to all authenticated users)
+router.get(
+  '/graph-data',
+  auth(
+    ENUM_USER_ROLE.SUPER_ADMIN,
+    ENUM_USER_ROLE.MANAGER,
+    ENUM_USER_ROLE.EMPLOYEE,
+    ENUM_USER_ROLE.USER,
+    ENUM_USER_ROLE.PROPERTY_MANAGER
+  ),
+  TransactionController.getRevenueGraphData
+);
+
+// Get a single transaction by ID - must be after all specific routes
 router.get(
   '/:id',
   auth(
