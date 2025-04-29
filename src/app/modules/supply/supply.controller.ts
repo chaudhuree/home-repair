@@ -104,3 +104,36 @@ export const getSupplyAssignmentsByUser = catchAsync(async (req: Request, res: R
     data: result.data,
   });
 });
+
+// Get detailed supply information with employee allocations
+export const getSupplyDetailWithAllocations = catchAsync(async (req: Request, res: Response) => {
+  const result = await supplyService.getSupplyDetailWithAllocations(req.params.id);
+  return sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: 'Supply details with allocations retrieved successfully',
+    data: result,
+  });
+});
+
+// Add quantity to an existing supply
+export const addSupplyQuantity = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { quantity } = req.body;
+  
+  if (!quantity || typeof quantity !== 'number') {
+    return sendResponse(res, {
+      success: false,
+      statusCode: 400,
+      message: 'Quantity must be provided as a number',
+    });
+  }
+  
+  const result = await supplyService.addSupplyQuantity(id, quantity);
+  return sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: 'Supply quantity added successfully',
+    data: result,
+  });
+});

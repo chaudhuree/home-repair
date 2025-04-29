@@ -318,3 +318,104 @@ export async function getSupplyAssignmentsByUser(userId: string, options: IPagin
     data: result,
   };
 }
+
+// Add quantity to an existing supply
+export async function addSupplyQuantity(id: string, additionalQuantity: number) {
+  // Validate input
+  if (additionalQuantity <= 0) {
+    throw new Error('Additional quantity must be greater than zero');
+  }
+
+  // Get the current supply
+  const currentSupply = await prismaWithSupply.supply.findUnique({
+    where: { id },
+  }) as Supply | null;
+
+  if (!currentSupply) {
+    throw new Error('Supply not found');
+  }
+
+  // Calculate new quantity
+  const newQuantity = currentSupply.quantity + additionalQuantity;
+
+  // Update the supply with the new quantity
+  const updatedSupply = await prismaWithSupply.supply.update({
+    where: { id },
+    data: {
+      quantity: newQuantity,
+      status: true, // If we're adding quantity, it's definitely available
+    },
+  }) as Supply;
+
+  return {
+    previousQuantity: currentSupply.quantity,
+    addedQuantity: additionalQuantity,
+    newQuantity: updatedSupply.quantity,
+    supply: updatedSupply
+  };
+}
+
+// Get detailed supply information with employee allocation data
+export async function getSupplyDetailWithAllocations(id: string) {
+  // Get the supply details
+  const supply = await prismaWithSupply.supply.findUnique({
+    where: { id },
+  }) as Supply | null;
+
+  if (!supply) {
+    throw new Error('Supply not found');
+  }
+
+  // Get all active assignments for this supply
+  const activeAssignments = await prismaWithSupply.supplyAssignment.findMany({
+    where: {
+      supplyId: id,
+      isReturned: false,
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      },
+    },
+  });
+
+  // Calculate total assigned quantity
+  const totalAssignedQuantity = activeAssignments.reduce(
+    (sum: number, assignment: any) => sum + assignment.quantity, 
+    0
+  );
+
+  // Group assignments by employee
+  const employeeAllocations = activeAssignments.reduce((acc: any, assignment: any) => {
+    const userId = assignment.userId;
+    if (!acc[userId]) {
+      acc[userId] = {
+        employee: assignment.user,
+        totalQuantity: 0,
+        assignments: [],
+      };
+    }
+    
+    acc[userId].totalQuantity += assignment.quantity;
+    acc[userId].assignments.push({
+      id: assignment.id,
+      quantity: assignment.quantity,
+      assignDate: assignment.assignDate,
+    });
+    
+    return acc;
+  }, {});
+
+  return {
+    supply,
+    availableQuantity: supply.quantity,
+    totalAssignedQuantity,
+    totalQuantity: supply.quantity + totalAssignedQuantity,
+    employeeAllocations: Object.values(employeeAllocations),
+  };
+}
