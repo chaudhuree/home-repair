@@ -509,6 +509,45 @@ const updateReservation = async (
             `Cannot transition from ${reservation.status} to ${payload.status}`,
           );
         }
+        
+        // If transitioning from work_done to completed, check if second installment is paid
+        // If not paid, automatically process the second installment payment
+        if (payload.status === ServiceStatus.completed && !reservation.secondInstallmentPaid) {
+          // Only users and property managers can trigger automatic payment
+          if (userRole === 'user' || userRole === 'property_manager') {
+            try {
+              // Process second installment payment
+              await processSecondInstallment(id, userId);
+              
+              // Since processSecondInstallment already updates the reservation status,
+              // we should return from here to avoid double-updating
+              return await prisma.reservation.findUnique({
+                where: { id },
+                include: {
+                  service: true,
+                  spaceType: true,
+                  packageType: true,
+                  user: true,
+                  employee: true,
+                  reservationAddOns: {
+                    include: {
+                      addOn: true,
+                    },
+                  },
+                },
+              }) as Reservation;
+            } catch (error) {
+              // If payment processing fails, throw an error
+              if (error instanceof AppError) {
+                throw error;
+              }
+              throw new AppError(
+                400,
+                'Failed to process second installment payment. Please try again or contact support.',
+              );
+            }
+          }
+        }
         break;
 
       case ServiceStatus.completed:
