@@ -138,14 +138,14 @@ export async function assignSupply(payload: ISupplyAssignment) {
     }) as Supply;
 
     // Create the supply assignment
-    const assignment = await (tx as any).supplyAssignment.create({
-      data: {
-        supplyId: payload.supplyId,
-        userId: payload.userId,
-        quantity: payload.quantity,
-        assignDate: payload.assignDate || new Date(),
-      },
-    }) as SupplyAssignment;
+    // const assignment = await (tx as any).supplyAssignment.create({
+    //   data: {
+    //     supplyId: payload.supplyId,
+    //     userId: payload.userId,
+    //     quantity: payload.quantity,
+    //     assignDate: payload.assignDate || new Date(),
+    //   },
+    // }) as SupplyAssignment;
 
     // Record the supply transaction
     const assignDate = payload.assignDate || new Date();
@@ -159,7 +159,7 @@ export async function assignSupply(payload: ISupplyAssignment) {
     });
 
     return {
-      assignment,
+      // assignment,
       supply: updatedSupply,
     };
   }));
@@ -170,30 +170,30 @@ export async function returnSupply(payload: ISupplyReturn) {
   // Use retry logic for the transaction
   return retry(() => prisma.$transaction(async (tx) => {
     // Get the assignment
-    const assignments = await (tx as any).supplyAssignment.findMany({
-      where: {
-        supplyId: payload.supplyId,
-        userId: payload.userId,
-        isReturned: false,
-      },
-      orderBy: {
-        assignDate: 'asc',
-      },
-    }) as SupplyAssignment[];
+    // const assignments = await (tx as any).supplyAssignment.findMany({
+    //   where: {
+    //     supplyId: payload.supplyId,
+    //     userId: payload.userId,
+    //     isReturned: false,
+    //   },
+    //   orderBy: {
+    //     assignDate: 'asc',
+    //   },
+    // }) as SupplyAssignment[];
 
-    if (!assignments.length) {
-      throw new Error('No active assignments found for this supply and user');
-    }
+    // if (!assignments.length) {
+    //   throw new Error('No active assignments found for this supply and user');
+    // }
 
     // Calculate total assigned quantity
-    const totalAssignedQuantity = assignments.reduce(
-      (sum, assignment) => sum + assignment.quantity, 
-      0
-    );
+    // const totalAssignedQuantity = assignments.reduce(
+    //   (sum, assignment) => sum + assignment.quantity, 
+    //   0
+    // );
 
-    if (totalAssignedQuantity < payload.quantity) {
-      throw new Error(`Cannot return more than assigned quantity. Assigned: ${totalAssignedQuantity}, Attempting to return: ${payload.quantity}`);
-    }
+    // if (totalAssignedQuantity < payload.quantity) {
+    //   throw new Error(`Cannot return more than assigned quantity. Assigned: ${totalAssignedQuantity}, Attempting to return: ${payload.quantity}`);
+    // }
 
     // Get the current supply
     const supply = await (tx as any).supply.findUnique({
@@ -214,51 +214,51 @@ export async function returnSupply(payload: ISupplyReturn) {
     }) as Supply;
 
     // Process the return by updating assignments
-    let remainingToReturn = payload.quantity;
-    const updatedAssignments = [];
-    const returnDate = payload.returnDate || new Date();
+    // let remainingToReturn = payload.quantity;
+    // const updatedAssignments = [];
+    // const returnDate = payload.returnDate || new Date();
 
-    for (const assignment of assignments) {
-      if (remainingToReturn <= 0) break;
+    // for (const assignment of assignments) {
+    //   if (remainingToReturn <= 0) break;
 
-      const returnQuantity = Math.min(assignment.quantity, remainingToReturn);
-      remainingToReturn -= returnQuantity;
+      // const returnQuantity = Math.min(assignment.quantity, remainingToReturn);
+      // remainingToReturn -= returnQuantity;
 
-      if (returnQuantity === assignment.quantity) {
+      // if (returnQuantity === assignment.quantity) {
         // If returning the entire assignment
-        const updatedAssignment = await (tx as any).supplyAssignment.update({
-          where: { id: assignment.id },
-          data: {
-            isReturned: true,
-            returnDate,
-          },
-        });
-        updatedAssignments.push(updatedAssignment);
-      } else {
+        // const updatedAssignment = await (tx as any).supplyAssignment.update({
+        //   where: { id: assignment.id },
+        //   data: {
+        //     isReturned: true,
+        //     returnDate,
+        //   },
+        // });
+        // updatedAssignments.push(updatedAssignment);
+      // } else {
         // If returning part of the assignment
         // Update the current assignment with reduced quantity
-        const updatedAssignment = await (tx as any).supplyAssignment.update({
-          where: { id: assignment.id },
-          data: {
-            quantity: assignment.quantity - returnQuantity,
-          },
-        });
-        updatedAssignments.push(updatedAssignment);
+        // const updatedAssignment = await (tx as any).supplyAssignment.update({
+        //   where: { id: assignment.id },
+        //   data: {
+        //     quantity: assignment.quantity - returnQuantity,
+        //   },
+        // });
+        // updatedAssignments.push(updatedAssignment);
 
         // Create a new assignment for the returned portion
-        const returnedAssignment = await (tx as any).supplyAssignment.create({
-          data: {
-            supplyId: payload.supplyId,
-            userId: payload.userId,
-            quantity: returnQuantity,
-            isReturned: true,
-            assignDate: assignment.assignDate,
-            returnDate,
-          },
-        });
-        updatedAssignments.push(returnedAssignment);
-      }
-    }
+        // const returnedAssignment = await (tx as any).supplyAssignment.create({
+        //   data: {
+        //     supplyId: payload.supplyId,
+        //     userId: payload.userId,
+        //     quantity: returnQuantity,
+        //     isReturned: true,
+        //     assignDate: assignment.assignDate,
+        //     returnDate,
+        //   },
+        // });
+        // updatedAssignments.push(returnedAssignment);
+      // }
+    // }
 
     // Record the supply transaction
     await createSupplyTransaction({
@@ -266,12 +266,12 @@ export async function returnSupply(payload: ISupplyReturn) {
       employeeId: payload.userId,
       quantity: payload.quantity,
       type: 'returned',
-      date: returnDate,
+      date: payload.returnDate || new Date(),
       notes: `Returned ${payload.quantity} ${supply.measureUnit} of ${supply.name} from employee`
     });
 
     return {
-      updatedAssignments,
+      // updatedAssignments,
       supply: updatedSupply,
       returnedQuantity: payload.quantity,
     };
