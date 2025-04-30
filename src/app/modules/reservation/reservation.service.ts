@@ -1150,7 +1150,7 @@ const getOngoingJobs = async (
   // Ongoing jobs are those with status 'assigned_employee' or 'in_progress'
   const whereCondition: Prisma.ReservationWhereInput = {
     status: {
-      in: ['assigned_employee', 'in_progress'],
+      in: [ 'in_progress'],
     },
   };
 
@@ -1578,7 +1578,6 @@ const scheduleReservation = async (id: string, scheduledDate: Date | string): Pr
     where: { id },
     data: { 
       scheduledDate: new Date(scheduledDate),
-      status: ServiceStatus.assigned_employee // Update status to assigned_employee
     },
     include: {
       service: true,
