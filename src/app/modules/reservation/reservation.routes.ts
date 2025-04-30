@@ -46,7 +46,7 @@ router.get(
 
 router.patch(
   '/:id',
-  auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.EMPLOYEE),
+  auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.EMPLOYEE, ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROPERTY_MANAGER),
   validateRequest(ReservationValidation.update),
   ReservationController.updateReservation
 );
