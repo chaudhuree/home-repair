@@ -136,6 +136,7 @@ const createReservation = async (
       serviceId: data.serviceId,
       providePaint: data.providePaint,
       paintPrice: data.paintPrice,
+      paintName: data.paintName,
       stripeCustomerId: user.stripeCustomerId,
       firstInstallmentAmount,
       secondInstallmentAmount,
