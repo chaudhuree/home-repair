@@ -78,6 +78,12 @@ router.patch(
   ReservationController.approveCashback
 );
 
+router.patch(
+  '/:id/cashback/:cashbackId/reject',
+  auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN),
+  ReservationController.rejectCashback
+);
+
 // Assign employee route (manager only)
 router.patch(
   '/:id/assign-employee',

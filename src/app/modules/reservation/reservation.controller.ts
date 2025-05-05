@@ -143,6 +143,18 @@ const approveCashback = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const rejectCashback = catchAsync(async (req: Request, res: Response) => {
+  const { id, cashbackId } = req.params;
+
+  const result = await ReservationService.rejectCashback(id, cashbackId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Cashback rejected successfully',
+    data: result,
+  });
+});
 const assignEmployee = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const result = await ReservationService.assignEmployee(id, req.body);
@@ -405,6 +417,7 @@ export const ReservationController = {
   assignEmployee,
   processCashback,
   approveCashback,
+  rejectCashback,
   addReservationAddOn,
   removeReservationAddOn,
   createReservationWithPayment,

@@ -48,7 +48,7 @@ const registerUserIntoDB = async (payload: any) => {
     name: `${payload.firstName} ${payload.lastName}`,
     email: payload.email,
     password: hashedPassword,
-    role: 'user',
+    role: payload.role || 'user',
     stripeCustomerId: stripeCustomer.id,
     profile: {
       create: {

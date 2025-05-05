@@ -837,6 +837,43 @@ const approveCashback = async (
   return reservation;
 };
 
+const rejectCashback = async (
+  id: string,
+  cashbackId: string,
+): Promise<Reservation> => {
+  const cashback = await prisma.cashback.findUnique({
+    where: { id: cashbackId },
+    include: {
+      user: true
+    }
+  });
+
+  if (!cashback) {
+    throw new AppError(404, 'Cashback request not found');
+  }
+
+  const reservation = await prisma.reservation.findUnique({
+    where: { id },
+    include: {
+      service: true
+    }
+  });
+
+  if (!reservation) {
+    throw new AppError(404, 'Reservation not found');
+  }
+
+  // Update cashback status
+  await prisma.cashback.update({
+    where: { id: cashbackId },
+    data: {
+      status: 'rejected',
+    },
+  });
+
+  return reservation;
+};
+
 const assignEmployee = async (
   id: string,
   payload: IAssignEmployee,
@@ -1811,6 +1848,7 @@ export const ReservationService = {
   assignEmployee,
   processCashback,
   approveCashback,
+  rejectCashback,
   addReservationAddOn,
   removeReservationAddOn,
   createReservationWithPayment,
