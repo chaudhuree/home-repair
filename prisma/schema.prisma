@@ -75,6 +75,7 @@ model User {
   supplyTransactions SupplyTransaction[]
   customerTransactions Transaction[] @relation("transactionCustomer")
   employeeTransactions Transaction[] @relation("transactionEmployee")
+  todos             Todo[] @relation("employeeTodos")
 }
 
 model Service {
@@ -358,7 +359,7 @@ model Transaction {
   status        String?       // For tracking transaction status (e.g., successful, failed, pending)
   addOnsList    String[]      @db.ObjectId // Array of AddOn IDs
   description   String?       // Detailed description of the transaction
-  notes         String?
+  notes         String?       
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -367,4 +368,28 @@ model Transaction {
   service       Service?      @relation(fields: [serviceId], references: [id])
   employee      User?         @relation("transactionEmployee", fields: [employeeId], references: [id])
   customer      User          @relation("transactionCustomer", fields: [customerId], references: [id])
+}
+
+model Todo {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId  String     @db.ObjectId
+  date        DateTime   @default(now())
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  employee    User       @relation("employeeTodos", fields: [employeeId], references: [id])
+  todoItems   TodoItem[]
+}
+
+model TodoItem {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  todoId      String     @db.ObjectId
+  content     String
+  isDone      Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  todo        Todo       @relation(fields: [todoId], references: [id])
 }
