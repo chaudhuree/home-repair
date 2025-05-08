@@ -4,6 +4,8 @@ import auth from '../../middlewares/auth';
 import { ENUM_USER_ROLE } from '../../../enums/user';
 import validateRequest from '../../middlewares/validateRequest';
 import { ReservationValidation } from './reservation.validation';
+import { ChecklistController } from './checklist.controller';
+import { ChecklistValidation } from './checklist.validation';
 
 const router = express.Router();
 
@@ -206,6 +208,29 @@ router.patch(
   auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN, ENUM_USER_ROLE.EMPLOYEE),
   validateRequest(ReservationValidation.scheduleReservationZodSchema),
   ReservationController.scheduleReservation
+);
+
+// Checklist routes
+// Create checklist for a reservation (auto-created when reservation is created, but can be manually created if needed)
+router.post(
+  '/:reservationId/checklist',
+  auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN, ENUM_USER_ROLE.EMPLOYEE),
+  ChecklistController.createChecklist
+);
+
+// Get checklist for a reservation
+router.get(
+  '/:reservationId/checklist',
+  auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN, ENUM_USER_ROLE.EMPLOYEE, ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROPERTY_MANAGER),
+  ChecklistController.getChecklist
+);
+
+// Update checklist item
+router.patch(
+  '/checklist/item/:itemId',
+  auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN, ENUM_USER_ROLE.EMPLOYEE),
+  validateRequest(ChecklistValidation.updateChecklistItemSchema),
+  ChecklistController.updateChecklistItem
 );
 
 export const ReservationRoutes = router;

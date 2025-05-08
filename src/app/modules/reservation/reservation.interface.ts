@@ -126,3 +126,20 @@ export interface ICashbackResponse {
 export interface IScheduleReservation {
   scheduledDate: Date | string;
 }
+
+export interface IChecklistItem {
+  id?: string;
+  reservationChecklistId: string;
+  description: string;
+  isDone: boolean;
+}
+
+export interface IReservationChecklist {
+  id?: string;
+  reservationId: string;
+  items: IChecklistItem[];
+}
+
+export interface IUpdateChecklistItem {
+  isDone: boolean;
+}

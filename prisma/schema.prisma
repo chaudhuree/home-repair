@@ -181,6 +181,7 @@ model Reservation {
   chatRoom     ChatRoom?
   cashbacks    Cashback[]
   transactions Transaction[]
+  checklist    ReservationChecklist?
 }
 
 
@@ -392,4 +393,27 @@ model TodoItem {
 
   // Relations
   todo        Todo       @relation(fields: [todoId], references: [id])
+}
+
+model ReservationChecklist {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  reservationId String   @unique @db.ObjectId
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  items         ChecklistItem[]
+}
+
+model ChecklistItem {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  reservationChecklistId String   @db.ObjectId
+  description         String
+  isDone              Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  reservationChecklist ReservationChecklist @relation(fields: [reservationChecklistId], references: [id])
 }

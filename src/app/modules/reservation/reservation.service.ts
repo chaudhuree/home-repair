@@ -19,6 +19,7 @@ import AppError from '../../errors/AppError';
 import { PaymentService } from '../payment/payment.service';
 import { TransactionService } from '../transaction/transaction.service';
 import { PaymentMethod } from '../transaction/transaction.interface';
+import { createReservationChecklist } from './checklist.util';
 
 const createReservation = async (
   userId: string,
@@ -129,51 +130,34 @@ const createReservation = async (
   const secondInstallmentAmount = totalAmount * 0.5;
 
   const result = await prisma.$transaction(async tx => {
-    // Create the reservation
-    // Prepare the base reservation data
-    const reservationData: any = {
-      userId,
-      serviceId: data.serviceId,
-      providePaint: data.providePaint,
-      paintPrice: data.paintPrice,
-      paintName: data.paintName,
-      stripeCustomerId: user.stripeCustomerId,
-      firstInstallmentAmount,
-      secondInstallmentAmount,
-      firstInstallmentPaid: false,
-      secondInstallmentPaid: false,
-      status: ServiceStatus.pending,
-      paymentStatus: PaymentStatus.pending,
-      customersGivenImages: data.customersGivenImages || [],
-      beforeImages: [],
-      afterImages: [],
-      projectDescription: data.projectDescription,
-      accessInstructionDetails: data.accessInstructionDetails,
-      address: data.address,
-      userSelectedDates: data.userSelectedDates,
-      amount: totalAmount // Use calculated amount instead of data.amount
-    };
-    
-    // Only add spaceTypeId if it's provided and not empty
-    if (data.spaceTypeId && data.spaceTypeId.trim() !== '') {
-      reservationData.spaceTypeId = data.spaceTypeId;
-    }
-    
-    // Only add packageTypeId if it's provided and not empty
-    if (data.packageTypeId && data.packageTypeId.trim() !== '') {
-      reservationData.packageTypeId = data.packageTypeId;
-    }
-    
+    // Create the reservation with all data
     const reservation = await tx.reservation.create({
-      data: reservationData,
-      include: {
-        service: true,
-        spaceType: true,
-        packageType: true,
-        user: true,
+      data: {
+        userId,
+        serviceId: data.serviceId,
+        spaceTypeId: data.spaceTypeId || undefined,
+        packageTypeId: data.packageTypeId || undefined,
+        stripeCustomerId: user.stripeCustomerId,
+        providePaint: data.providePaint,
+        paintPrice: data.providePaint ? 0 : data.paintPrice,
+        paintName: data.paintName,
+        status: ServiceStatus.pending,
+        customersGivenImages: data.customersGivenImages || [],
+        beforeImages: [],
+        afterImages: [],
+        projectDescription: data.projectDescription,
+        accessInstructionDetails: data.accessInstructionDetails,
+        address: data.address,
+        userSelectedDates: data.userSelectedDates,
+        amount: totalAmount,
+        firstInstallmentAmount,
+        secondInstallmentAmount,
+        firstInstallmentPaid: false,
+        secondInstallmentPaid: false,
+        paymentStatus: PaymentStatus.pending,
       },
     });
-
+    
     // Create reservation add-ons if any
     if (addOnItems.length > 0) {
       for (const item of addOnItems) {
@@ -220,6 +204,9 @@ const createReservation = async (
     
     return completeReservation;
   });
+
+  // Create checklist for the reservation after transaction is complete
+  await createReservationChecklist(result.id);
 
   return result;
 };
@@ -308,6 +295,11 @@ const getAllReservations = async (
         },
       },
       cashbacks: true,
+      checklist: {
+        include: {
+          items: true,
+        },
+      },
     },
   });
 
@@ -354,6 +346,11 @@ const getSingleReservation = async (
               createdAt: 'asc',
             },
           },
+        },
+      },
+      checklist: {
+        include: {
+          items: true,
         },
       },
     },
