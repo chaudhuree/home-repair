@@ -30,12 +30,20 @@ const getChecklist = catchAsync(async (req: Request, res: Response) => {
 
 const updateChecklistItem = catchAsync(async (req: Request, res: Response) => {
   const { itemId } = req.params;
-  const result = await ChecklistService.updateChecklistItem(itemId, req.body);
+  
+  // First get the current state of the checklist item
+  const currentItem = await ChecklistService.getChecklistItem(itemId);
+  
+  // Toggle the isDone property
+  const newIsDone = !currentItem.isDone;
+  
+  // Update with the toggled value - pass the boolean directly instead of an object
+  const result = await ChecklistService.updateChecklistItem(itemId, newIsDone);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'Checklist item updated successfully',
+    message: 'Checklist item toggled successfully',
     data: result,
   });
 });

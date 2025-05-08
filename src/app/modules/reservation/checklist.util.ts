@@ -98,6 +98,30 @@ export const getReservationChecklist = async (reservationId: string) => {
 };
 
 /**
+ * Gets a single checklist item by ID
+ */
+export const getChecklistItem = async (itemId: string) => {
+  try {
+    // Find the checklist item
+    const item = await prisma.checklistItem.findUnique({
+      where: { id: itemId },
+    });
+
+    if (!item) {
+      throw new AppError(httpStatus.NOT_FOUND, 'Checklist item not found');
+    }
+
+    return item;
+  } catch (error) {
+    console.error('Error getting checklist item:', error);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to get checklist item');
+  }
+};
+
+/**
  * Updates a checklist item's isDone status
  */
 export const updateChecklistItem = async (itemId: string, isDone: boolean) => {

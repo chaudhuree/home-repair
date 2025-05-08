@@ -228,8 +228,7 @@ router.get(
 // Update checklist item
 router.patch(
   '/checklist/item/:itemId',
-  auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN, ENUM_USER_ROLE.EMPLOYEE),
-  validateRequest(ChecklistValidation.updateChecklistItemSchema),
+  auth(ENUM_USER_ROLE.MANAGER, ENUM_USER_ROLE.SUPER_ADMIN, ENUM_USER_ROLE.EMPLOYEE, ENUM_USER_ROLE.USER, ENUM_USER_ROLE.PROPERTY_MANAGER),
   ChecklistController.updateChecklistItem
 );
 
