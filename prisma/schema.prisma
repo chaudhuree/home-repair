@@ -76,6 +76,8 @@ model User {
   customerTransactions Transaction[] @relation("transactionCustomer")
   employeeTransactions Transaction[] @relation("transactionEmployee")
   todos             Todo[] @relation("employeeTodos")
+  notifications     Notification[] @relation("userNotifications")
+  sentNotifications Notification[] @relation("sentNotifications")
 }
 
 model Service {
@@ -416,4 +418,19 @@ model ChecklistItem {
 
   // Relations
   reservationChecklist ReservationChecklist @relation(fields: [reservationChecklistId], references: [id])
+}
+
+model Notification {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String?   @db.ObjectId
+  fromUserId  String?  @db.ObjectId
+  content     String
+  forRole     UserRole?
+  isSeen      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User?     @relation("userNotifications", fields: [userId], references: [id])
+  fromUser    User?    @relation("sentNotifications", fields: [fromUserId], references: [id])
 }

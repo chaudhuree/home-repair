@@ -12,6 +12,7 @@ import { SpaceTypeRoutes } from '../modules/spaceType/spaceType.routes';
 import { SupplyRoutes } from '../modules/supply/supply.routes';
 import { SupplyTransactionRoutes } from '../modules/supplyTransaction/supplyTransaction.routes';
 import { TodoRoutes } from '../modules/todo/todo.routes';
+import { NotificationRoutes } from '../modules/notification/notification.routes';
 
 // need to import below two to upload image -> upload is the middleware
 // uploadImage is the function
@@ -82,6 +83,10 @@ const moduleRoutes: ModuleRoute[] = [
   {
     path: '/todos',
     route: TodoRoutes,
+  },
+  {
+    path: '/notifications',
+    route: NotificationRoutes,
   },
 ];
 

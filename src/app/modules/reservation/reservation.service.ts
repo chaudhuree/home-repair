@@ -20,6 +20,8 @@ import { PaymentService } from '../payment/payment.service';
 import { TransactionService } from '../transaction/transaction.service';
 import { PaymentMethod } from '../transaction/transaction.interface';
 import { createReservationChecklist } from './checklist.util';
+import { ENUM_USER_ROLE } from '../../../enums/user';
+import {NotificationService} from '../notification/notification.service';
 
 const createReservation = async (
   userId: string,
@@ -202,6 +204,12 @@ const createReservation = async (
       throw new AppError(500, 'Failed to retrieve created reservation');
     }
     
+    // create notification for reservation
+    await NotificationService.createNotification({
+      userId,
+      content: `New reservation created for ${service.name} by ${user.name}`,
+      forRole: ENUM_USER_ROLE.MANAGER,
+    });
     return completeReservation;
   });
 
@@ -458,6 +466,12 @@ const updateReservation = async (
             `Cannot transition from ${reservation.status} to ${payload.status}`,
           );
         }
+        
+        // create notification for reservation
+        await NotificationService.createNotification({
+          userId: reservation.userId,
+          content: `Reservation status updated to ${payload.status}`,
+        });
         break;
 
       case ServiceStatus.accepted:
@@ -471,6 +485,12 @@ const updateReservation = async (
             `Cannot transition from ${reservation.status} to ${payload.status}`,
           );
         }
+        
+        // create notification for reservation
+        await NotificationService.createNotification({
+          userId: reservation.userId,
+          content: `Reservation status updated to ${payload.status}`,
+        });
         break;
 
       case ServiceStatus.assigned_employee:
@@ -484,6 +504,12 @@ const updateReservation = async (
             `Cannot transition from ${reservation.status} to ${payload.status}`,
           );
         }
+        
+        // create notification for reservation
+        await NotificationService.createNotification({
+          userId: reservation.userId,
+          content: `Reservation status updated to ${payload.status}`,
+        });
         break;
 
       case ServiceStatus.in_progress:
@@ -497,6 +523,12 @@ const updateReservation = async (
             `Cannot transition from ${reservation.status} to ${payload.status}`,
           );
         }
+
+        // create notification for reservation
+        await NotificationService.createNotification({
+          userId: reservation.userId,
+          content: `Reservation status updated to ${payload.status}`,
+        });
         break;
 
       case ServiceStatus.work_done:
@@ -546,6 +578,12 @@ const updateReservation = async (
             }
           }
         }
+        
+        // create notification for reservation
+        await NotificationService.createNotification({
+          content: `Reservation status updated to ${payload.status} by ${reservation.user.name} and second installment is paid`,
+          forRole: ENUM_USER_ROLE.MANAGER,
+        });
         break;
 
       case ServiceStatus.completed:
@@ -660,6 +698,12 @@ const processFirstInstallment = async (
     reservation.depositPaymentIntentId || undefined // Pass the payment intent ID, handle null case
   );
 
+  // create notification for reservation
+  await NotificationService.createNotification({
+    userId: reservation.userId,
+    content: `First installment is paid for ${reservation.service.name}`,
+  });
+
   return updatedReservation;
 };
 // final payment of the reservation here id is the reservation id
@@ -726,6 +770,12 @@ const processSecondInstallment = async (
     },
   });
 
+  // create notification for reservation
+  await NotificationService.createNotification({
+    userId: reservation.userId,
+    content: `Second installment is paid for ${reservation.service.name}`,
+  });
+
   return updatedReservation;
 };
 
@@ -768,6 +818,12 @@ const processCashback = async (
       proof: [reviewImage], // Convert single string to array
       depositPaymentIntentId: reservation.depositPaymentIntentId,
     },
+  });
+
+  // create notification for reservation
+  await NotificationService.createNotification({
+    userId: reservation.userId,
+    content: `Cashback request is pending for ${reservation.serviceId}`,
   });
 
   return reservation;
@@ -832,6 +888,12 @@ const approveCashback = async (
     }
   });
 
+  // create notification for reservation
+  await NotificationService.createNotification({
+    userId: reservation.userId,
+    content: `Cashback is approved for ${reservation.serviceId}`,
+  });
+
   return reservation;
 };
 
@@ -869,6 +931,12 @@ const rejectCashback = async (
     },
   });
 
+  // create notification for reservation
+  await NotificationService.createNotification({
+    userId: reservation.userId,
+    content: `Cashback is rejected for ${reservation.serviceId}`,
+  });
+
   return reservation;
 };
 
@@ -902,6 +970,18 @@ const assignEmployee = async (
           push: payload.employeeId,
         },
       },
+    });
+
+    // create notification for reservation
+    await NotificationService.createNotification({
+      userId: reservation.userId,
+      content: `Employee is assigned for ${reservation.serviceId}`,
+    });
+
+    // create notification for employee
+    await NotificationService.createNotification({
+      userId: payload.employeeId,
+      content: `You are assigned for ${reservation.serviceId}`,
     });
 
     return reservation;
