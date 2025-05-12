@@ -975,13 +975,13 @@ const assignEmployee = async (
     // create notification for reservation
     await NotificationService.createNotification({
       userId: reservation.userId,
-      content: `Employee is assigned for ${reservation.serviceId}`,
+      content: `Employee is assigned for ${reservation.service.name}`,
     });
 
     // create notification for employee
     await NotificationService.createNotification({
       userId: payload.employeeId,
-      content: `You are assigned for ${reservation.serviceId}`,
+      content: `You are assigned for ${reservation.service.name}`,
     });
 
     return reservation;
@@ -1337,29 +1337,31 @@ const getUpcomingJobs = async (
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
+  // Convert dates to ISO strings for consistent comparison
+  const todayISO = today.toISOString();
+  const tomorrowISO = tomorrow.toISOString();
+
   // Build the where condition for upcoming jobs
   // Upcoming jobs are either:
   // 1. Jobs with scheduled date in the future (after today)
-  // 2. Jobs with scheduled date of today but status is not 'in_progress' (including 'assigned_employee')
+  // 2. Jobs with scheduled date of today but status is not 'in_progress' or 'completed'
   const whereCondition: Prisma.ReservationWhereInput = {
     firstInstallmentPaid: true,
     OR: [
       // Future jobs (scheduled after today)
       {
         scheduledDate: {
-          gte: tomorrow, // Date greater than today
+          gte: tomorrowISO, // Date greater than today
         },
       },
-      // Today's jobs that are not yet in progress
+      // Today's jobs that are not yet in progress or completed
       {
         scheduledDate: {
-          gte: today,
-          lt: tomorrow,
+          gte: todayISO,
+          lt: tomorrowISO,
         },
-        AND: {
-          status: {
-            in: ['assigned_employee', 'accepted'],
-          },
+        status: {
+          in: ['assigned_employee', 'accepted'],
         },
       },
     ],
@@ -1816,17 +1818,45 @@ const getEmployeeUpcomingJobs = async (
   options: IPaginationOptions
 ): Promise<IGenericResponse<Reservation[]>> => {
   const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
+  
+  // Get current date without time component for today's comparison
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Find reservations where the employee is assigned, status is assigned_employee, and scheduledDate is in the future
+  // Convert dates to ISO strings for consistent comparison
+  const todayISO = today.toISOString();
+  const tomorrowISO = tomorrow.toISOString();
+
+  // Build the where condition for upcoming jobs
+  const whereCondition: Prisma.ReservationWhereInput = {
+    employeeId,
+    firstInstallmentPaid: true,
+    OR: [
+      // Future jobs (scheduled after today)
+      {
+        scheduledDate: {
+          gte: tomorrowISO, // Date greater than today
+        },
+      },
+      // Today's jobs that are not yet in progress or completed
+      {
+        scheduledDate: {
+          gte: todayISO,
+          lt: tomorrowISO,
+        },
+        status: {
+          in: ['assigned_employee', 'accepted'],
+        },
+      },
+    ],
+  };
+
+  // Find reservations where the employee is assigned
   const result = await prisma.reservation.findMany({
-    where: {
-      employeeId,
-      status: ServiceStatus.assigned_employee,
-      scheduledDate: {
-        gt: today
-      }
-    },
+    where: whereCondition,
     skip,
     take: limit,
     orderBy: sortBy && sortOrder ? {
@@ -1855,13 +1885,7 @@ const getEmployeeUpcomingJobs = async (
   });
 
   const total = await prisma.reservation.count({
-    where: {
-      employeeId,
-      status: ServiceStatus.assigned_employee,
-      scheduledDate: {
-        gt: today
-      }
-    },
+    where: whereCondition,
   });
 
   return {
@@ -1915,16 +1939,44 @@ const getEmployeeDashboardStats = async (
     },
   });
 
-  // Get total upcoming jobs (assigned_employee and scheduledDate > today)
+  // Get total upcoming jobs using the same logic as getEmployeeUpcomingJobs
+  // Get current date without time component for today's comparison
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // Convert dates to ISO strings for consistent comparison
+  const todayISO = today.toISOString();
+  const tomorrowISO = tomorrow.toISOString();
+
+  // Build the where condition for upcoming jobs
+  const upcomingJobsCondition: Prisma.ReservationWhereInput = {
+    employeeId,
+    firstInstallmentPaid: true,
+    OR: [
+      // Future jobs (scheduled after today)
+      {
+        scheduledDate: {
+          gte: tomorrowISO, // Date greater than today
+        },
+      },
+      // Today's jobs that are not yet in progress or completed
+      {
+        scheduledDate: {
+          gte: todayISO,
+          lt: tomorrowISO,
+        },
+        status: {
+          in: ['assigned_employee', 'accepted'],
+        },
+      },
+    ],
+  };
+
   const totalUpcomingJobs = await prisma.reservation.count({
-    where: {
-      employeeId,
-      status: ServiceStatus.assigned_employee,
-      scheduledDate: {
-        gt: today
-      }
-    },
+    where: upcomingJobsCondition,
   });
 
   return {
