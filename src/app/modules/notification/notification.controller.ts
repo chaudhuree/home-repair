@@ -101,10 +101,24 @@ const markAllAsSeen = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// Delete a notification
+const deleteNotification = catchAsync(async (req: Request, res: Response) => {
+  const id = req.params.id;
+  const result = await NotificationService.deleteNotification(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: 'Notification deleted successfully',
+    data: result
+  });
+});
+
 export const NotificationController = {
   createNotification,
   getNotifications,
   getManagerNotifications,
   markAsSeen,
-  markAllAsSeen
+  markAllAsSeen,
+  deleteNotification
 };

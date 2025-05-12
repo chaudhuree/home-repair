@@ -6,17 +6,15 @@ import { IPaginationOptions } from '../../interface/pagination';
 
 // Create notification
 const createNotification = async (payload: ICreateNotification): Promise<INotification> => {
-  // Create a data object with required fields
-  const data: any = {
+  // Prepare data object with proper typing
+  const data = {
     content: payload.content,
     isSeen: false,
+    ...(payload.userId ? { userId: payload.userId } : {}),
+    ...(payload.fromUserId ? { fromUserId: payload.fromUserId } : {}),
+    ...(payload.forRole ? { forRole: payload.forRole } : {})
     // Prisma automatically handles createdAt and updatedAt fields
   };
-
-  // Only add optional fields if they exist
-  if (payload.userId) data.userId = payload.userId;
-  if (payload.fromUserId) data.fromUserId = payload.fromUserId;
-  if (payload.forRole) data.forRole = payload.forRole;
 
   const notification = await prisma.notification.create({ data });
 
@@ -30,11 +28,12 @@ const getNotifications = async (filters: INotificationFilters): Promise<INotific
   // Calculate pagination options
   const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options || {});
   
-  // Build where condition
-  const whereCondition: any = {};
-  if (userId) whereCondition.userId = userId;
-  if (forRole) whereCondition.forRole = forRole;
-  if (isSeen !== undefined) whereCondition.isSeen = isSeen;
+  // Build where condition with proper typing
+  const whereCondition = {
+    ...(userId ? { userId } : {}),
+    ...(forRole ? { forRole } : {}),
+    ...(isSeen !== undefined ? { isSeen } : {})
+  };
 
   // Get notifications with pagination
   const notifications = await prisma.notification.findMany({
@@ -70,6 +69,7 @@ const getNotifications = async (filters: INotificationFilters): Promise<INotific
   const total = await prisma.notification.count({ where: whereCondition });
   const totalPage = Math.ceil(total / limit);
 
+  // The result matches our INotificationResponse interface
   return {
     meta: {
       page,
@@ -77,7 +77,7 @@ const getNotifications = async (filters: INotificationFilters): Promise<INotific
       total,
       totalPage
     },
-    data: notifications
+    data: notifications as INotification[]
   };
 };
 
@@ -86,8 +86,8 @@ const getManagerNotifications = async (options?: IPaginationOptions): Promise<IN
   // Calculate pagination options
   const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options || {});
   
-  // Build where condition for managers
-  const whereCondition: any = {
+  // Build where condition for managers with proper typing
+  const whereCondition = {
     forRole: {
       in: [UserRole.manager, UserRole.super_admin]
     }
@@ -119,6 +119,7 @@ const getManagerNotifications = async (options?: IPaginationOptions): Promise<IN
   const total = await prisma.notification.count({ where: whereCondition });
   const totalPage = Math.ceil(total / limit);
 
+  // The result matches our INotificationResponse interface
   return {
     meta: {
       page,
@@ -126,7 +127,7 @@ const getManagerNotifications = async (options?: IPaginationOptions): Promise<IN
       total,
       totalPage
     },
-    data: notifications
+    data: notifications as INotification[]
   };
 };
 
@@ -146,10 +147,18 @@ const markAllAsSeen = async (userId: string) => {
   });
 };
 
+// Delete a notification
+const deleteNotification = async (id: string): Promise<INotification> => {
+  return prisma.notification.delete({
+    where: { id },
+  });
+};
+
 export const NotificationService = {
   createNotification,
   getNotifications,
   getManagerNotifications,
   markAsSeen,
-  markAllAsSeen
+  markAllAsSeen,
+  deleteNotification
 };

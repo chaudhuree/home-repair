@@ -3,13 +3,16 @@ import { IPaginationOptions } from '../../interface/pagination';
 
 export type INotification = {
   id: string;
-  userId?: string;
+  userId?: string | null;
   fromUserId?: string | null;
   content: string;
   forRole?: UserRole | null;
   isSeen: boolean;
   createdAt: Date;
   updatedAt: Date;
+  // Optional related data that might be included
+  user?: any;
+  fromUser?: any;
 };
 
 export type ICreateNotification = {

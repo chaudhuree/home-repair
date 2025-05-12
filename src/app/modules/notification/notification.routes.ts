@@ -40,4 +40,10 @@ router.patch(
   NotificationController.markAllAsSeen
 );
 
+// Delete a notification
+router.delete(
+  '/:id',
+  auth(UserRole.super_admin, UserRole.manager, UserRole.user, UserRole.property_manager, UserRole.employee),
+  NotificationController.deleteNotification
+);
 export const NotificationRoutes = router;
