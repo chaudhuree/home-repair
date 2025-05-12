@@ -14,7 +14,7 @@ router.post(
 
 // Get notifications for a user
 router.get(
-  '/user/:userId',
+  '/user',
   auth(UserRole.super_admin, UserRole.manager, UserRole.user, UserRole.property_manager, UserRole.employee),
   NotificationController.getNotifications
 );

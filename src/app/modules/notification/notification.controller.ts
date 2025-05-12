@@ -22,7 +22,7 @@ const createNotification = catchAsync(async (req: Request, res: Response) => {
 
 // Get notifications for a user with pagination
 const getNotifications = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.params.userId;
+  const userId = req.user?.id;
   const { forRole, isSeen, page, limit, sortBy, sortOrder } = req.query;
   
   // Prepare pagination options
