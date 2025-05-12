@@ -1330,14 +1330,39 @@ const getUpcomingJobs = async (
 ): Promise<IGenericResponse<Reservation[]>> => {
   const { page, limit, skip, sortBy, sortOrder } = calculatePagination(options);
 
+  // Get current date without time component for today's comparison
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
   // Build the where condition for upcoming jobs
-  // Upcoming jobs are those with status 'accepted' and have a scheduled date in the future
+  // Upcoming jobs are either:
+  // 1. Jobs with scheduled date in the future (after today)
+  // 2. Jobs with scheduled date of today but status is not 'in_progress' (including 'assigned_employee')
   const whereCondition: Prisma.ReservationWhereInput = {
-    // status: 'accepted',
     firstInstallmentPaid: true,
-    scheduledDate: {
-      gte: new Date(), // Date greater than or equal to current date
-    },
+    OR: [
+      // Future jobs (scheduled after today)
+      {
+        scheduledDate: {
+          gte: tomorrow, // Date greater than today
+        },
+      },
+      // Today's jobs that are not yet in progress
+      {
+        scheduledDate: {
+          gte: today,
+          lt: tomorrow,
+        },
+        AND: {
+          status: {
+            in: ['assigned_employee', 'accepted'],
+          },
+        },
+      },
+    ],
   };
 
   // Get reservations
