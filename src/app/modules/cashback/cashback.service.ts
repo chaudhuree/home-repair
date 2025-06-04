@@ -79,7 +79,7 @@ const createCashback = async (data: {
 };
 
 // Approve a cashback request
-const approveCashback = async (id: string) => {
+const approveCashback = async (id: string, amount?: number) => {
   // Get the cashback details
   const cashback = await prisma.cashback.findUnique({
     where: { id },
@@ -101,11 +101,16 @@ const approveCashback = async (id: string) => {
     throw new AppError(400, `Cashback is already ${cashback.status}`);
   }
 
-  // Update the cashback status
+  // Use the provided amount or fallback to the original amount
+  const cashbackAmount = amount !== undefined ? amount : cashback.amount;
+
+  // Update the cashback status and amount if provided
   const updatedCashback = await prisma.cashback.update({
     where: { id },
     data: {
       status: CashbackStatus.approved,
+      // Update the amount if a new one is provided
+      ...(amount !== undefined && { amount: cashbackAmount }),
     },
     include: {
       user: true,
@@ -118,7 +123,7 @@ const approveCashback = async (id: string) => {
     id,
     cashback.userId,
     cashback.reservationId,
-    cashback.amount,
+    cashbackAmount,
     PaymentMethod.stripe
   );
 

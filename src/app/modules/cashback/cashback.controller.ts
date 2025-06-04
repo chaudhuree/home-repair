@@ -52,7 +52,8 @@ const createCashback = catchAsync(async (req: Request, res: Response) => {
 // Approve a cashback request
 const approveCashback = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await CashbackService.approveCashback(id);
+  const { amount } = req.body;
+  const result = await CashbackService.approveCashback(id, amount);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
